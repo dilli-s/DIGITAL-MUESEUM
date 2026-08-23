@@ -51,7 +51,9 @@ def create_app(config_class=Config):
         return jsonify({"status": "ok", "message": "Digital Museum API is running"})
 
     # Initialize CORS safely with credentials support
-    CORS(app, origins=[app.config['FRONTEND_URL']], supports_credentials=True)
+    frontend_url_str = app.config.get('FRONTEND_URL', 'http://localhost:5173')
+    allowed_origins = [url.strip() for url in frontend_url_str.split(',') if url.strip()]
+    CORS(app, origins=allowed_origins, supports_credentials=True)
 
     # Initialize extensions
     db.init_app(app)
