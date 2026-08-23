@@ -34,10 +34,21 @@ def create_app(config_class=Config):
 
     @app.errorhandler(Exception)
     def handle_exception(e):
+        from werkzeug.exceptions import HTTPException
+        from flask import jsonify
+        
+        # Pass through HTTP errors
+        if isinstance(e, HTTPException):
+            return jsonify({"error": {"code": str(e.code), "message": e.description}}), e.code
+            
         # Global error handler for 500
         logger.error(f"Server Error: {str(e)}", exc_info=True)
-        from flask import jsonify
         return jsonify({"error": {"code": "INTERNAL_ERROR", "message": "Something went wrong."}}), 500
+
+    @app.route('/')
+    def index():
+        from flask import jsonify
+        return jsonify({"status": "ok", "message": "Digital Museum API is running"})
 
     # Initialize CORS safely with credentials support
     CORS(app, origins=[app.config['FRONTEND_URL']], supports_credentials=True)
