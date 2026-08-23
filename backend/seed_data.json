@@ -1,0 +1,567 @@
+{
+  "museums": [
+    {
+      "id": 1,
+      "name": "National History Museum",
+      "location": "London, UK",
+      "category": "History",
+      "description": "A world-class visitor attraction and leading science research centre.",
+      "longDescription": "The National History Museum is a world-class visitor attraction and leading science research centre. We use our unique collections and unrivalled expertise to tackle the biggest challenges facing the world today. Explore our vast galleries covering paleontology, human evolution, and the natural world.",
+      "established": "1881",
+      "galleryCount": 12,
+      "collectionCount": 5,
+      "objectCount": 3500,
+      "exhibitionCount": 3,
+      "featured": true
+    },
+    {
+      "id": 2,
+      "name": "Museum of Modern Art",
+      "location": "New York, USA",
+      "category": "Art",
+      "description": "Discover the world's most significant collection of modern and contemporary art.",
+      "longDescription": "The Museum of Modern Art plays a major role in developing and collecting modern art, and is often identified as one of the largest and most influential museums of modern art in the world.",
+      "established": "1929",
+      "galleryCount": 8,
+      "collectionCount": 4,
+      "objectCount": 1200,
+      "exhibitionCount": 2,
+      "featured": true
+    },
+    {
+      "id": 3,
+      "name": "Louvre Museum",
+      "location": "Paris, France",
+      "category": "Art",
+      "description": "The world's most-visited museum, home to some of the best-known works of art.",
+      "longDescription": "The Louvre is the world's largest art museum and a historic monument in Paris. It showcases thousands of works of art, spanning from ancient civilizations to the mid-19th century.",
+      "established": "1793",
+      "galleryCount": 20,
+      "collectionCount": 8,
+      "objectCount": 5000,
+      "exhibitionCount": 4,
+      "featured": true
+    },
+    {
+      "id": 4,
+      "name": "Acropolis Museum",
+      "location": "Athens, Greece",
+      "category": "Archaeology",
+      "description": "An archaeological museum focused on the findings of the archaeological site of the Acropolis of Athens.",
+      "longDescription": "The Acropolis Museum is an archaeological museum built to house every artifact found on the rock and on the surrounding slopes, from the Greek Bronze Age to Roman and Byzantine Greece.",
+      "established": "2009",
+      "galleryCount": 5,
+      "collectionCount": 3,
+      "objectCount": 4200,
+      "exhibitionCount": 1,
+      "featured": false
+    },
+    {
+      "id": 5,
+      "name": "National Museum of Natural History",
+      "location": "Washington D.C., USA",
+      "category": "Science",
+      "description": "Explore the natural world and our place in it.",
+      "longDescription": "Administered by the Smithsonian Institution, the museum's collections contain over 145 million specimens of plants, animals, fossils, minerals, rocks, meteorites, human remains, and human cultural artifacts.",
+      "established": "1910",
+      "galleryCount": 15,
+      "collectionCount": 10,
+      "objectCount": 12600,
+      "exhibitionCount": 5,
+      "featured": false
+    },
+    {
+      "id": 6,
+      "name": "Kyoto National Museum",
+      "location": "Kyoto, Japan",
+      "category": "Culture",
+      "description": "One of the major art museums in Japan, distinguished by its collection of pre-modern Japanese and Asian art.",
+      "longDescription": "The Kyoto National Museum focuses on pre-modern Japanese works (with a heavy emphasis on the Heian period) and Asian art. The museum is a prominent institution for the study and preservation of Japan's cultural heritage.",
+      "established": "1897",
+      "galleryCount": 10,
+      "collectionCount": 6,
+      "objectCount": 3100,
+      "exhibitionCount": 2,
+      "featured": false
+    }
+  ],
+  "galleries": [
+    {
+      "id": 1,
+      "museumId": 1,
+      "name": "Dinosaur Era",
+      "description": "Explore the fossils and bones of prehistoric giants.",
+      "objectCount": 450,
+      "period": "Prehistoric",
+      "theme": "Science"
+    },
+    {
+      "id": 2,
+      "museumId": 1,
+      "name": "Human Evolution",
+      "description": "Tracing the origins and development of early humans.",
+      "objectCount": 320,
+      "period": "Prehistoric",
+      "theme": "Science"
+    },
+    {
+      "id": 3,
+      "museumId": 2,
+      "name": "Abstract Expressionism",
+      "description": "Post-World War II art movement in American painting.",
+      "objectCount": 150,
+      "period": "Modern",
+      "theme": "Art"
+    },
+    {
+      "id": 4,
+      "museumId": 2,
+      "name": "Pop Art",
+      "description": "Art based on modern popular culture and the mass media.",
+      "objectCount": 85,
+      "period": "Modern",
+      "theme": "Art"
+    },
+    {
+      "id": 5,
+      "museumId": 3,
+      "name": "Egyptian Antiquities",
+      "description": "Artifacts from the Nile Valley dating from 4,000 BC.",
+      "objectCount": 890,
+      "period": "Ancient",
+      "theme": "Culture"
+    },
+    {
+      "id": 6,
+      "museumId": 3,
+      "name": "Italian Renaissance",
+      "description": "Masterpieces of Italian painting and sculpture.",
+      "objectCount": 410,
+      "period": "Renaissance",
+      "theme": "Art"
+    },
+    {
+      "id": 7,
+      "museumId": 4,
+      "name": "Archaic Acropolis",
+      "description": "Statues and objects from the early periods of Athens.",
+      "objectCount": 300,
+      "period": "Ancient",
+      "theme": "Archaeology"
+    },
+    {
+      "id": 8,
+      "museumId": 5,
+      "name": "Ocean Hall",
+      "description": "Marine life and the history of the world's oceans.",
+      "objectCount": 1200,
+      "period": "Contemporary",
+      "theme": "Science"
+    },
+    {
+      "id": 9,
+      "museumId": 6,
+      "name": "Edo Period Ceramics",
+      "description": "Exquisite pottery and ceramics from Japan's Edo period.",
+      "objectCount": 220,
+      "period": "Early Modern",
+      "theme": "Culture"
+    }
+  ],
+  "collections": [
+    {
+      "id": 1,
+      "museumId": 1,
+      "name": "Paleontology Collection",
+      "description": "A vast collection of dinosaur fossils and prehistoric remains.",
+      "longDescription": "The Paleontology Collection contains millions of fossil specimens spanning hundreds of millions of years. This collection is crucial for understanding the history of life on Earth, from the earliest microscopic life forms to the giant dinosaurs.",
+      "category": "Science",
+      "period": "Prehistoric",
+      "location": "Main Building, West Wing",
+      "objectCount": 1200,
+      "featured": true
+    },
+    {
+      "id": 2,
+      "museumId": 1,
+      "name": "Mineralogy",
+      "description": "Rare gems, minerals, and meteorites from around the world.",
+      "longDescription": "Discover the spectacular world of minerals, gems, and meteorites. This collection showcases the diversity of Earth's geological building blocks and includes some of the rarest specimens ever found.",
+      "category": "Natural Heritage",
+      "period": "Various",
+      "location": "Earth Hall",
+      "objectCount": 800,
+      "featured": false
+    },
+    {
+      "id": 3,
+      "museumId": 2,
+      "name": "20th Century Painting",
+      "description": "Key works from the pioneers of modern art.",
+      "longDescription": "A comprehensive journey through the transformative art movements of the 20th century. Includes masterpieces of Cubism, Surrealism, and Abstract Expressionism.",
+      "category": "Art",
+      "period": "20th Century",
+      "location": "Gallery 2, Floor 4",
+      "objectCount": 450,
+      "featured": true
+    },
+    {
+      "id": 4,
+      "museumId": 3,
+      "name": "Near Eastern Antiquities",
+      "description": "9000 years of history from North Africa to the Indus.",
+      "longDescription": "Spanning a vast geographical area and immense time periods, this collection contains some of the earliest evidence of writing, monumental architecture, and complex societies.",
+      "category": "Archaeology",
+      "period": "Ancient",
+      "location": "Sully Wing",
+      "objectCount": 3500,
+      "featured": true
+    },
+    {
+      "id": 5,
+      "museumId": 4,
+      "name": "Parthenon Sculptures",
+      "description": "Surviving sculptural elements from the Parthenon.",
+      "longDescription": "A breathtaking collection of classical Greek sculpture, primarily featuring the surviving architectural sculptures of the Parthenon in Athens.",
+      "category": "History",
+      "period": "Classical",
+      "location": "Level 3",
+      "objectCount": 80,
+      "featured": false
+    }
+  ],
+  "exhibitions": [
+    {
+      "id": 1,
+      "museumId": 1,
+      "title": "Ancient Giants",
+      "subtitle": "A journey through prehistoric life",
+      "description": "Explore the fascinating world of dinosaurs and early life forms.",
+      "longDescription": "Ancient Giants brings together the most impressive prehistoric specimens in our collection. This exhibition explores how these massive creatures lived, hunted, and eventually went extinct, featuring interactive displays and never-before-seen fossils.",
+      "category": "Science",
+      "theme": "Prehistory",
+      "period": "Prehistoric",
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31",
+      "location": "Main Exhibition Hall",
+      "featured": true,
+      "objectIds": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": 2,
+      "museumId": 1,
+      "title": "Human Origins",
+      "subtitle": "The dawn of mankind",
+      "description": "Trace the evolutionary steps that led to modern humans.",
+      "longDescription": "From the earliest bipedal hominids to the emergence of Homo sapiens, Human Origins showcases crucial fossils and tools that tell the story of our species' incredible journey.",
+      "category": "History",
+      "theme": "Evolution",
+      "period": "Pleistocene",
+      "startDate": "2020-01-01",
+      "endDate": "2024-12-31",
+      "location": "West Wing Gallery",
+      "featured": false,
+      "objectIds": [
+        3
+      ]
+    },
+    {
+      "id": 3,
+      "museumId": 2,
+      "title": "Modern Masterpieces",
+      "subtitle": "20th-century artistic revolutions",
+      "description": "A journey through 20th-century artistic revolutions.",
+      "longDescription": "Modern Masterpieces explores the radical shift in visual arts during the 20th century. Witness the birth of abstract expressionism, cubism, and surrealism through the eyes of the pioneers who broke all the rules.",
+      "category": "Art",
+      "theme": "Modern Art",
+      "period": "20th Century",
+      "startDate": "2027-05-01",
+      "endDate": "2028-01-15",
+      "location": "Floor 4, Temporary Exhibits",
+      "featured": true,
+      "objectIds": [
+        4
+      ]
+    },
+    {
+      "id": 4,
+      "museumId": 3,
+      "title": "Pharaohs of the Sun",
+      "subtitle": "The art and culture of Egypt's Amarna period",
+      "description": "Discover the treasures of ancient Egypt.",
+      "longDescription": "Step back into the world of pharaohs, pyramids, and powerful deities. This exhibition brings together magnificent sculptures, intricate jewelry, and fascinating artifacts from one of history's greatest civilizations.",
+      "category": "Archaeology",
+      "theme": "Ancient Egypt",
+      "period": "Ancient Egypt",
+      "startDate": null,
+      "endDate": null,
+      "location": "Sully Wing",
+      "featured": true,
+      "objectIds": [
+        5
+      ]
+    },
+    {
+      "id": 5,
+      "museumId": 3,
+      "title": "Renaissance Awakening",
+      "subtitle": "The rebirth of art and learning",
+      "description": "Explore the cultural explosion that transformed Europe.",
+      "longDescription": "Renaissance Awakening highlights the incredible achievements in painting, sculpture, and science that defined the European Renaissance, featuring iconic works from master artists.",
+      "category": "Art",
+      "theme": "Renaissance",
+      "period": "15th-16th Century",
+      "startDate": "2025-01-01",
+      "endDate": "2027-12-31",
+      "location": "Denon Wing",
+      "featured": false,
+      "objectIds": [
+        6
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": 1,
+      "museumId": 1,
+      "galleryId": 1,
+      "collectionId": 1,
+      "name": "T-Rex Skeleton",
+      "localName": "Tyrannosaurus",
+      "scientificName": "Tyrannosaurus rex",
+      "period": "Cretaceous",
+      "date": "68–66 million years ago",
+      "origin": "North America",
+      "category": "Fossil",
+      "shortDescription": "A fully assembled Tyrannosaurus Rex skeleton.",
+      "description": "This magnificent skeleton of a Tyrannosaurus rex is one of the most complete ever found. It provides critical insights into the anatomy and biomechanics of one of the largest meat-eating dinosaurs that ever lived.",
+      "significance": "The specimen has fundamentally changed our understanding of theropod growth rates, bite force, and evolutionary relationships among late Cretaceous dinosaurs.",
+      "interestingFacts": [
+        "It had teeth the size of bananas.",
+        "The T. rex bite force was about 8,000 pounds.",
+        "They had excellent binocular vision, similar to modern hawks."
+      ],
+      "image": "/images/trex.jpg",
+      "images": [
+        "/images/trex-1.jpg",
+        "/images/trex-2.jpg"
+      ],
+      "audio": "/audio/trex-narration.mp3",
+      "video": "/videos/trex-walk.mp4",
+      "model3d": "/models/trex.glb",
+      "featured": true,
+      "relatedObjectIds": [
+        2,
+        3
+      ],
+      "themeIds": [
+        1
+      ]
+    },
+    {
+      "id": 2,
+      "museumId": 1,
+      "galleryId": 1,
+      "collectionId": 1,
+      "name": "Triceratops Skull",
+      "localName": "Three-horned face",
+      "scientificName": "Triceratops horridus",
+      "period": "Cretaceous",
+      "date": "68–66 million years ago",
+      "origin": "North America",
+      "category": "Fossil",
+      "shortDescription": "A well-preserved skull of a Triceratops.",
+      "description": "The massive skull of this herbivore features a distinctive bony frill and three formidable horns, which were used both for defense and for species recognition.",
+      "significance": "Provides evidence of intra-species combat and predator defense during the late Cretaceous period.",
+      "interestingFacts": [
+        "The skull alone could grow to be over 8 feet long.",
+        "Its beak was similar to that of a parrot, useful for plucking tough vegetation."
+      ],
+      "image": "/images/triceratops.jpg",
+      "images": [],
+      "featured": false,
+      "relatedObjectIds": [
+        1
+      ],
+      "themeIds": [
+        1
+      ]
+    },
+    {
+      "id": 3,
+      "museumId": 1,
+      "galleryId": 2,
+      "collectionId": 1,
+      "name": "Lucy Australopithecus",
+      "scientificName": "Australopithecus afarensis",
+      "period": "Pliocene",
+      "date": "3.2 million years ago",
+      "origin": "Ethiopia",
+      "category": "Hominid Fossil",
+      "shortDescription": "Cast of the famous hominid fossil.",
+      "description": "Lucy is a collection of fossilized bones that once made up the skeleton of a hominin species. Discovered in 1974, she provides a crucial link in the evolutionary chain of human ancestors.",
+      "significance": "Lucy proved that early hominins walked upright (bipedalism) before they developed large brains.",
+      "interestingFacts": [
+        "She was named after the Beatles song 'Lucy in the Sky with Diamonds'.",
+        "Only about 40% of her skeleton was found, but it was enough to deduce bipedalism."
+      ],
+      "image": "/images/lucy.jpg",
+      "featured": true,
+      "relatedObjectIds": [
+        1
+      ],
+      "themeIds": [
+        2
+      ]
+    },
+    {
+      "id": 4,
+      "museumId": 2,
+      "galleryId": 3,
+      "collectionId": 3,
+      "name": "Number 1A, 1948",
+      "localName": "Pollock's Drip Painting",
+      "period": "1948",
+      "date": "1948",
+      "origin": "New York, USA",
+      "category": "Painting",
+      "shortDescription": "Jackson Pollock's famous drip painting.",
+      "description": "An early example of Jackson Pollock's groundbreaking 'drip' technique, created by pouring and splattering liquid paint onto a canvas spread across the floor.",
+      "significance": "This work marks a radical departure from traditional easel painting and cemented abstract expressionism as a dominant postwar art movement.",
+      "interestingFacts": [
+        "Pollock occasionally left handprints in the paint.",
+        "The canvas was unstretched during the painting process."
+      ],
+      "image": "/images/pollock.jpg",
+      "featured": true,
+      "relatedObjectIds": [],
+      "themeIds": [
+        3
+      ]
+    },
+    {
+      "id": 5,
+      "museumId": 3,
+      "galleryId": 5,
+      "collectionId": 4,
+      "name": "Great Sphinx of Tanis",
+      "period": "Old Kingdom",
+      "date": "c. 2600 BC",
+      "origin": "Egypt",
+      "category": "Sculpture",
+      "shortDescription": "One of the largest sphinxes outside of Egypt.",
+      "description": "Carved from red granite, this massive sculpture combines the body of a lion with the head of a king, symbolizing the pharaoh's immense power and divine connection.",
+      "significance": "It is one of the most prominent Egyptian antiquities in the collection and shows evidence of being inscribed by multiple pharaohs over centuries.",
+      "interestingFacts": [
+        "Names of several pharaohs, including Ramesses II, are carved into it."
+      ],
+      "image": "/images/sphinx.jpg",
+      "featured": false,
+      "relatedObjectIds": [
+        6
+      ],
+      "themeIds": [
+        4
+      ]
+    },
+    {
+      "id": 6,
+      "museumId": 3,
+      "galleryId": 6,
+      "collectionId": 4,
+      "name": "Mona Lisa",
+      "localName": "La Gioconda",
+      "period": "Renaissance",
+      "date": "c. 1503–1506",
+      "origin": "Italy",
+      "category": "Painting",
+      "shortDescription": "Portrait painting by Leonardo da Vinci.",
+      "description": "The Mona Lisa is a half-length portrait painting by the Italian artist Leonardo da Vinci. It is considered an archetypal masterpiece of the Italian Renaissance.",
+      "significance": "Renowned for the subject's enigmatic expression and the subtle modeling of forms (sfumato).",
+      "interestingFacts": [
+        "It was stolen from the Louvre in 1911 and recovered two years later.",
+        "The painting is surprisingly small in person."
+      ],
+      "image": "/images/monalisa.jpg",
+      "featured": true,
+      "relatedObjectIds": [
+        5
+      ],
+      "themeIds": [
+        3
+      ]
+    }
+  ],
+  "learning": [
+    {
+      "id": 1,
+      "objectId": 1,
+      "title": "Understanding the T-Rex",
+      "type": "article",
+      "description": "An interactive article exploring how the T-Rex generated its massive bite force.",
+      "content": [
+        {
+          "heading": "Introduction",
+          "text": "The Tyrannosaurus rex was one of the largest meat-eating dinosaurs that ever lived. Everything about this ferocious predator, from its thick, heavy skull to its 4-foot-long jaw, was designed for maximum bone-crushing action."
+        },
+        {
+          "heading": "Biomechanics of a Bite",
+          "text": "Recent biomechanical studies suggest that a T. rex could bite down with a force of up to 8,000 pounds, equivalent to the weight of three small cars. This incredible power allowed them to crush the bones of their prey."
+        },
+        {
+          "heading": "Historical Context",
+          "text": "Fossils of T. rex are found in a variety of rock formations dating to the Maastrichtian age of the upper Cretaceous period, 68 to 66 million years ago."
+        }
+      ],
+      "duration": "5 min",
+      "difficulty": "Beginner",
+      "category": "Science",
+      "featured": true
+    },
+    {
+      "id": 2,
+      "objectId": 1,
+      "title": "Dinosaur Habitats",
+      "type": "article",
+      "description": "Learn about the Late Cretaceous environment where these creatures thrived.",
+      "content": [
+        {
+          "heading": "The Late Cretaceous World",
+          "text": "During the Late Cretaceous, North America was divided by a shallow inland sea. The climate was warmer than it is today, with high sea levels and no polar ice caps."
+        },
+        {
+          "heading": "Flora and Fauna",
+          "text": "The landscape was dominated by flowering plants, which were beginning to outcompete conifers and ferns. Dinosaurs shared this world with early mammals, birds, and giant marine reptiles."
+        }
+      ],
+      "duration": "8 min",
+      "difficulty": "Intermediate",
+      "category": "Science",
+      "featured": false
+    },
+    {
+      "id": 3,
+      "objectId": 6,
+      "title": "Mastering Sfumato",
+      "type": "article",
+      "description": "An in-depth analysis of Leonardo's painting techniques.",
+      "content": [
+        {
+          "heading": "What is Sfumato?",
+          "text": "Sfumato is a painting technique developed by Leonardo da Vinci. It involves the subtle, almost imperceptible transition between colors and tones, eliminating harsh outlines."
+        },
+        {
+          "heading": "The Mona Lisa's Smile",
+          "text": "The technique is most famously demonstrated in the Mona Lisa, particularly around the corners of her mouth and eyes. This ambiguity is what gives her smile its enigmatic quality."
+        }
+      ],
+      "duration": "10 min",
+      "difficulty": "Advanced",
+      "category": "Art",
+      "featured": true
+    }
+  ]
+}
