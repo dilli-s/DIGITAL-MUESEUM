@@ -1,0 +1,59 @@
+{
+  "floor_plans": [
+    {
+      "id": "fp_ground",
+      "name": "Ground Floor",
+      "floor_number": 1,
+      "image_url": "https://example.com/map_ground.png",
+      "width_px": 1000,
+      "height_px": 800,
+      "scale_meters_per_px": 0.05
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_entrance",
+      "name": "Main Entrance",
+      "floor": 1,
+      "x_coordinate": 100,
+      "y_coordinate": 700,
+      "node_type": "entrance",
+      "floor_plan_id": "fp_ground"
+    },
+    {
+      "id": "node_gallery_a",
+      "name": "Gallery A",
+      "floor": 1,
+      "x_coordinate": 400,
+      "y_coordinate": 700,
+      "node_type": "exhibit",
+      "floor_plan_id": "fp_ground",
+      "object_id": 101
+    },
+    {
+      "id": "node_stairs",
+      "name": "Central Stairs",
+      "floor": 1,
+      "x_coordinate": 400,
+      "y_coordinate": 400,
+      "node_type": "stairs",
+      "floor_plan_id": "fp_ground"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_1",
+      "from_node_id": "node_entrance",
+      "to_node_id": "node_gallery_a",
+      "distance": 15.0,
+      "walkable": true
+    },
+    {
+      "id": "edge_2",
+      "from_node_id": "node_gallery_a",
+      "to_node_id": "node_stairs",
+      "distance": 15.0,
+      "walkable": true
+    }
+  ]
+}

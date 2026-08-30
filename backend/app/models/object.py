@@ -17,13 +17,21 @@ class MuseumObject(db.Model):
     
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    image = db.Column(db.String(255), nullable=True)
+    image = db.Column(db.Text, nullable=True)
     object_code = db.Column(db.String(100), unique=True, nullable=True)
     
     period = db.Column(db.String(100), nullable=True)
     origin = db.Column(db.String(100), nullable=True)
     category = db.Column(db.String(100), nullable=True)
     featured = db.Column(db.Boolean, default=False)
+    
+    audio_url = db.Column(db.Text, nullable=True)
+    video_url = db.Column(db.Text, nullable=True)
+    model_3d_url = db.Column(db.Text, nullable=True)
+    media_status = db.Column(db.String(50), nullable=True, default='pending')  # pending, generating, completed, failed
+    
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
     
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

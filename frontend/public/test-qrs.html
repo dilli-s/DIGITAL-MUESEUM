@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Checkpoints</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-wrap: wrap; gap: 20px; padding: 20px; }
+        .qr-card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; text-align: center; }
+        .qr-card h3 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h2>Scan these QR codes to test the Checkpoints!</h2>
+    <div id="qrs" style="display:flex; flex-wrap:wrap; gap:20px;"></div>
+    
+    <script>
+        const nodes = [
+            { id: "c2827480-d770-4961-811d-fa77d1e8f19a", name: "Entrance" },
+            { id: "7b7d20a0-280c-4e06-99f5-f28850dffb9d", name: "Junction A" },
+            { id: "2f18b91d-a3bf-4fbc-8c22-6ee7bad1904c", name: "Exhibit 1" },
+            { id: "5a0878e8-373d-4173-b622-77d74adb7e62", name: "Entrance (Test)" },
+            { id: "aee01ccd-25b3-4cfd-b6b8-28f3e06268cb", name: "Exhibit A" }
+        ];
+
+        const container = document.getElementById("qrs");
+        
+        nodes.forEach(node => {
+            const card = document.createElement("div");
+            card.className = "qr-card";
+            card.innerHTML = `<h3>${node.name}</h3><div id="qr-${node.id}"></div><p style="font-size:10px; color:#666;">node_id=${node.id}</p>`;
+            container.appendChild(card);
+            
+            new QRCode(document.getElementById(`qr-${node.id}`), {
+                text: `node_id=${node.id}`,
+                width: 128,
+                height: 128
+            });
+        });
+    </script>
+</body>
+</html>

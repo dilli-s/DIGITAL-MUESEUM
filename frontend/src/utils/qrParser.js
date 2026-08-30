@@ -10,30 +10,31 @@
  * @param {string} payload - The raw string from the QR code scanner
  * @returns {string|null} - Returns the object ID if valid, null otherwise.
  */
-export const extractObjectId = (payload) => {
+export const extractQRCode = (payload) => {
   if (!payload || typeof payload !== 'string') return null;
 
   const trimmed = payload.trim();
 
-  // Pattern 1: Short code format "OBJECT:123"
+  // Pattern 1: Short code format "OBJECT:123" or "MUSEUM:123"
   if (trimmed.toUpperCase().startsWith('OBJECT:')) {
     const id = trimmed.substring(7);
-    return id.length > 0 ? id : null;
+    return id.length > 0 ? { type: 'object', id } : null;
+  }
+  if (trimmed.toUpperCase().startsWith('MUSEUM:')) {
+    const id = trimmed.substring(7);
+    return id.length > 0 ? { type: 'museum', id } : null;
   }
 
-  // Pattern 2: URL or Path "/objects/123"
+  // Pattern 2: URL or Path "/objects/123" or "/museums/123"
   try {
-    // If it's a full URL, parse it. If it's a relative path, mock a base domain.
     const url = trimmed.startsWith('http') ? new URL(trimmed) : new URL(trimmed, 'https://museum.internal');
-    
-    // Path should be like /objects/123
     const pathParts = url.pathname.split('/').filter(Boolean);
     
-    if (pathParts.length === 2 && pathParts[0] === 'objects') {
-      return pathParts[1];
+    if (pathParts.length === 2) {
+      if (pathParts[0] === 'objects') return { type: 'object', id: pathParts[1] };
+      if (pathParts[0] === 'museums') return { type: 'museum', id: pathParts[1] };
     }
   } catch (e) {
-    // Not a valid URL or path pattern
   }
 
   return null;

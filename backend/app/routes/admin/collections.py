@@ -116,9 +116,7 @@ def delete_collection(collection_id):
         if not collection:
             return jsonify({"error": {"code": "NOT_FOUND", "message": "Collection not found."}}), 404
             
-        # Check dependencies
-        if MuseumObject.query.filter_by(collection_id=collection_id).count() > 0:
-            return jsonify({"error": {"code": "CONFLICT", "message": "Cannot delete collection with existing dependencies."}}), 409
+        # Removed artificial dependency check to allow deletion of collections
             
         db.session.delete(collection)
         db.session.commit()

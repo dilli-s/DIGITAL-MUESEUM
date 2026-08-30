@@ -102,9 +102,7 @@ def delete_learning_resource(learning_id):
         if not resource:
             return jsonify({"error": {"code": "NOT_FOUND", "message": "Learning resource not found."}}), 404
             
-        # Check dependencies
-        if Activity.query.filter_by(learning_resource_id=learning_id).count() > 0:
-            return jsonify({"error": {"code": "CONFLICT", "message": "Cannot delete learning resource with existing activities."}}), 409
+        # Removed artificial dependency check to allow cascade deletion
             
         db.session.delete(resource)
         db.session.commit()

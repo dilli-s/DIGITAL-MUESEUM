@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getMuseums } from '../../services/api';
 import { MapPin, Image as ImageIcon, Box } from 'lucide-react';
+import { getMediaUrl } from '../../utils/media';
 
 const BuildingPlaceholder = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-400">
@@ -42,13 +43,17 @@ const FeaturedMuseums = () => {
         </Link>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {museums.map((museum) => (
-          <div key={museum.id} className="group bg-white rounded-2xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-lg transition-all flex flex-col">
+          <div key={museum.id} className="w-[85vw] sm:w-auto shrink-0 snap-center group bg-white rounded-2xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-lg transition-all flex flex-col">
             <div className="h-48 bg-neutral-200 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-tr from-neutral-300 to-neutral-100 flex items-center justify-center">
-                <BuildingPlaceholder />
-              </div>
+              {museum.image ? (
+                <img src={getMediaUrl(museum.image)} alt={museum.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-tr from-neutral-300 to-neutral-100 flex items-center justify-center">
+                  <BuildingPlaceholder />
+                </div>
+              )}
             </div>
             <div className="p-6 flex-grow flex flex-col">
               <h3 className="text-xl font-bold text-neutral-900 mb-1">{museum.name}</h3>

@@ -19,7 +19,13 @@ def serialize_object(o):
         "period": o.period,
         "origin": o.origin,
         "category": o.category,
-        "featured": o.featured
+        "featured": o.featured,
+        "latitude": o.latitude,
+        "longitude": o.longitude,
+        "audio_url": o.audio_url,
+        "video_url": o.video_url,
+        "model_3d_url": o.model_3d_url,
+        "media_status": o.media_status
     }
 
 @object_bp.route('/objects', methods=['GET'])

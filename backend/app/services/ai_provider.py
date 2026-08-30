@@ -1,19 +1,19 @@
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 class AIProvider:
     def __init__(self):
-        self.api_key = os.environ.get("AI_API_KEY")
-        self.model_name = os.environ.get("AI_MODEL", "gemini-2.5-flash")
+        self.api_key = os.environ.get("AI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        self.model_name = os.environ.get("AI_MODEL", "gemini-3.6-flash")
         
         if self.api_key:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel(self.model_name)
+            self.client = genai.Client(api_key=self.api_key)
         else:
-            self.model = None
+            self.client = None
             
     def generate_response(self, system_instruction, context_text, user_question):
-        if not self.model:
+        if not self.client:
             return "AI Assistant is currently unavailable because the API key is not configured."
             
         prompt = f"""
@@ -27,10 +27,10 @@ USER QUESTION:
 {user_question}
 """
         try:
-            # We configure generation parameters like timeout / tokens if needed
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
                     max_output_tokens=500,
                     temperature=0.3
                 )

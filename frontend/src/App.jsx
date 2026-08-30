@@ -5,6 +5,7 @@ import AppRoutes from './routes/AppRoutes';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
+  console.log('App component rendering');
   return (
     <AuthProvider>
       <Router>

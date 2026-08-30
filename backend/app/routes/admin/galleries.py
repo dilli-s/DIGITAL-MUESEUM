@@ -20,7 +20,7 @@ def get_galleries():
             "data": [g.serialize() for g in galleries]
         })
     except Exception as e:
-        return jsonify({"error": {"code": "SERVER_ERROR", "message": "Failed to fetch galleries."}}), 500
+        return jsonify({"error": {"code": "SERVER_ERROR", "message": str(e)}}), 500
 
 @admin_galleries_bp.route('/galleries/<int:gallery_id>', methods=['GET'])
 @admin_required
@@ -33,7 +33,7 @@ def get_gallery(gallery_id):
             "data": gallery.serialize()
         })
     except Exception as e:
-        return jsonify({"error": {"code": "SERVER_ERROR", "message": "Failed to fetch gallery."}}), 500
+        return jsonify({"error": {"code": "SERVER_ERROR", "message": str(e)}}), 500
 
 @admin_galleries_bp.route('/galleries', methods=['POST'])
 @admin_required
@@ -51,8 +51,8 @@ def create_gallery():
             name=data['name'],
             description=data.get('description'),
             museum_id=data['museum_id'],
-            floor=data.get('floor'),
-            image_url=data.get('image_url')
+            image=data.get('image_url') or data.get('image'),
+            floor=data.get('floor') or 'Ground Floor',
         )
         db.session.add(gallery)
         db.session.commit()
@@ -61,7 +61,8 @@ def create_gallery():
         }), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": {"code": "SERVER_ERROR", "message": "Failed to create gallery."}}), 500
+        print(f"Error creating gallery: {e}")
+        return jsonify({"error": {"code": "SERVER_ERROR", "message": str(e)}}), 500
 
 @admin_galleries_bp.route('/galleries/<int:gallery_id>', methods=['PATCH'])
 @admin_required
@@ -77,11 +78,13 @@ def update_gallery(gallery_id):
             museum = Museum.query.get(data['museum_id'])
             if not museum:
                 return jsonify({"error": {"code": "NOT_FOUND", "message": "Museum does not exist."}}), 404
-                
-        allowed_fields = ['name', 'description', 'museum_id', 'floor', 'image_url']
-        for field in allowed_fields:
-            if field in data:
-                setattr(gallery, field, data[field])
+            gallery.museum_id = data['museum_id']
+        
+        if 'name' in data: gallery.name = data['name']
+        if 'description' in data: gallery.description = data['description']
+        if 'image_url' in data: gallery.image = data['image_url']
+        if 'image' in data: gallery.image = data['image']
+        if 'floor' in data: gallery.floor = data['floor']
                 
         db.session.commit()
         return jsonify({
@@ -89,7 +92,7 @@ def update_gallery(gallery_id):
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": {"code": "SERVER_ERROR", "message": "Failed to update gallery."}}), 500
+        return jsonify({"error": {"code": "SERVER_ERROR", "message": str(e)}}), 500
 
 @admin_galleries_bp.route('/galleries/<int:gallery_id>', methods=['DELETE'])
 @admin_required
@@ -99,11 +102,6 @@ def delete_gallery(gallery_id):
         if not gallery:
             return jsonify({"error": {"code": "NOT_FOUND", "message": "Gallery not found."}}), 404
             
-        # Check dependencies
-        if MuseumObject.query.filter_by(gallery_id=gallery_id).count() > 0 or \
-           Collection.query.filter_by(gallery_id=gallery_id).count() > 0:
-            return jsonify({"error": {"code": "CONFLICT", "message": "Cannot delete gallery with existing dependencies."}}), 409
-            
         db.session.delete(gallery)
         db.session.commit()
         return jsonify({
@@ -111,4 +109,5 @@ def delete_gallery(gallery_id):
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": {"code": "SERVER_ERROR", "message": "Failed to delete gallery."}}), 500
+        return jsonify({"error": {"code": "SERVER_ERROR", "message": str(e)}}), 500
+

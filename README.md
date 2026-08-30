@@ -141,7 +141,18 @@ For production and operational guidelines, please refer to the following documen
 
 ---
 
-## 7. Testing
+## 7. QR Payload Format
+
+The physical museum navigation system relies on scanning QR codes at checkpoints. 
+**Format Rules:**
+- The QR Code payload must encode the exact **Node UUID string** (e.g., `c2827480-d770-4961-811d-fa77d1e8f19a`).
+- **NO URL wrappers**, **NO JSON encoding**, and **NO extra whitespace**.
+- The scanner will accept URLs matching the deployment domain (e.g. `https://museum.app/checkpoint/<uuid>`) by stripping everything before the last slash, but encoding the raw UUID directly is highly recommended to prevent domain-migration issues.
+- When generating QR codes or seeding the `qr_locations` table, ensure the format matches this exactly to avoid "Checkpoint QR not recognized" errors.
+
+---
+
+## 8. Testing
 Execute tests from the backend directory:
 ```bash
 pytest

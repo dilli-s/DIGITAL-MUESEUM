@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAdminObjects, createAdminObject, updateAdminObject, deleteAdminObject, getAdminMuseums, getAdminGalleries, getAdminCollections } from '../../services/api';
+import { getAdminObjects, createAdminObject, updateAdminObject, deleteAdminObject, getAdminMuseums, getAdminGalleries, getAdminCollections, uploadFile } from '../../services/api';
 import { Plus, Edit, Trash2, X, AlertTriangle, Search } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 const AdminObjects = () => {
   const [objects, setObjects] = useState([]);
@@ -17,12 +18,30 @@ const AdminObjects = () => {
   const [formData, setFormData] = useState({ 
     title: '', description: '', museum_id: '', gallery_id: '', collection_id: '',
     creator: '', creation_date: '', medium: '', dimensions: '',
-    image_url: '', model_3d_url: '', audio_url: ''
+    image_url: '', model_3d_url: '', audio_url: '', latitude: '', longitude: ''
   });
   const [formError, setFormError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const handleUpload = async (e, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    try {
+      const res = await uploadFile(file);
+      if (res.data && res.data.url) {
+        setFormData(prev => ({ ...prev, [field]: res.data.url }));
+      }
+    } catch (err) {
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -69,7 +88,8 @@ const AdminObjects = () => {
     setFormData({ 
       title: '', description: '', museum_id: museums.length > 0 ? museums[0].id : '', 
       gallery_id: '', collection_id: '', creator: '', creation_date: '', 
-      medium: '', dimensions: '', image_url: '', model_3d_url: '', audio_url: ''
+      medium: '', dimensions: '', image_url: '', model_3d_url: '', audio_url: '',
+      latitude: '', longitude: ''
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -78,7 +98,7 @@ const AdminObjects = () => {
   const openEditModal = (obj) => {
     setEditingObject(obj);
     setFormData({
-      title: obj.title || '',
+      title: obj.name || obj.title || '',
       description: obj.description || '',
       museum_id: obj.museum_id || '',
       gallery_id: obj.gallery_id || '',
@@ -87,9 +107,11 @@ const AdminObjects = () => {
       creation_date: obj.creation_date || '',
       medium: obj.medium || '',
       dimensions: obj.dimensions || '',
-      image_url: obj.image_url || '',
+      image_url: obj.image || obj.image_url || '',
       model_3d_url: obj.model_3d_url || '',
-      audio_url: obj.audio_url || ''
+      audio_url: obj.audio_url || '',
+      latitude: obj.latitude !== null && obj.latitude !== undefined ? obj.latitude : '',
+      longitude: obj.longitude !== null && obj.longitude !== undefined ? obj.longitude : ''
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -106,8 +128,8 @@ const AdminObjects = () => {
         throw new Error("Museum is required");
       }
       payload.museum_id = parseInt(payload.museum_id);
-      payload.gallery_id = payload.gallery_id ? parseInt(payload.gallery_id) : '';
-      payload.collection_id = payload.collection_id ? parseInt(payload.collection_id) : '';
+      payload.gallery_id = payload.gallery_id ? parseInt(payload.gallery_id) : null;
+      payload.collection_id = payload.collection_id ? parseInt(payload.collection_id) : null;
       
       if (editingObject) {
         await updateAdminObject(editingObject.id, payload);
@@ -117,7 +139,7 @@ const AdminObjects = () => {
       setIsModalOpen(false);
       fetchObjects();
     } catch (err) {
-      setFormError(err.message || err.response?.data?.error?.message || 'An error occurred while saving.');
+      setFormError(err.response?.data?.error?.message || err.message || 'An error occurred while saving.');
     } finally {
       setIsSaving(false);
     }
@@ -168,31 +190,42 @@ const AdminObjects = () => {
             <thead className="bg-neutral-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">QR Code</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Image</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Title</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Museum ID</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Gallery / Collection</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">AI Media</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-neutral-200">
               {objects.length === 0 ? (
-                <tr><td colSpan="6" className="px-6 py-4 text-center text-neutral-500">No objects found.</td></tr>
+                <tr><td colSpan="7" className="px-6 py-4 text-center text-neutral-500">No objects found.</td></tr>
               ) : objects.map(obj => (
                 <tr key={obj.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{obj.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {obj.image_url ? (
-                      <img src={obj.image_url} alt={obj.title} className="h-10 w-10 rounded-md object-cover" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-md bg-neutral-200 flex items-center justify-center text-xs text-neutral-500">N/A</div>
-                    )}
+                    <div className="bg-white p-1 rounded-md border border-neutral-200 inline-block">
+                      <QRCodeCanvas value={`${window.location.origin}/objects/${obj.id}`} size={64} level="M" />
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{obj.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{obj.name || obj.title}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{obj.museum_id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                     <div>G: {obj.gallery_id || 'None'}</div>
                     <div>C: {obj.collection_id || 'None'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-neutral-500 space-y-1">
+                    {obj.media_status === 'generating' && (
+                      <span className="block text-amber-600 font-semibold">⏳ AI Generating...</span>
+                    )}
+                    {obj.media_status === 'failed' && (
+                      <span className="block text-red-600 font-semibold">❌ Generation Failed</span>
+                    )}
+                    {obj.audio_url ? <span className="block text-green-600 font-semibold">🔊 Audio ✓</span> : <span className="block">No Audio</span>}
+                    {obj.video_url ? <span className="block text-purple-600 font-semibold">🎬 Video ✓</span> : <span className="block">No Video</span>}
+                    {obj.model_3d_url ? <span className="block text-blue-600 font-semibold">🧊 3D Model ✓</span> : <span className="block">No 3D Model</span>}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button onClick={() => openEditModal(obj)} className="text-indigo-600 hover:text-indigo-900 mr-4">
@@ -282,18 +315,143 @@ const AdminObjects = () => {
                     </select>
                   </div>
 
+                  <h3 className="font-semibold text-lg border-b pb-2 pt-4">Location (Floorplan)</h3>
+                  {!formData.museum_id ? (
+                    <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                      <p className="text-sm text-amber-800 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Select a Museum to place this object on its floorplan map.
+                      </p>
+                    </div>
+                  ) : !museums.find(m => m.id === parseInt(formData.museum_id))?.floorplan_image ? (
+                    <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                      <p className="text-sm text-amber-800 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        The selected museum does not have a floorplan image. Please add one in the Museums tab first.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-neutral-500 mb-2">Click on the map to place this object exactly where it belongs.</p>
+                      <div className="relative w-full bg-neutral-100 rounded-xl border border-neutral-200 shadow-inner group overflow-hidden" style={{ height: '300px' }}>
+                        <img 
+                          src={museums.find(m => m.id === parseInt(formData.museum_id)).floorplan_image} 
+                          alt="Floorplan" 
+                          className="absolute inset-0 w-full h-full object-contain cursor-crosshair opacity-80 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            const rect = e.target.getBoundingClientRect();
+                            const x = ((e.clientX - rect.left) / rect.width) * 100;
+                            const y = ((e.clientY - rect.top) / rect.height) * 100;
+                            setFormData({...formData, longitude: x.toFixed(2), latitude: y.toFixed(2)});
+                          }}
+                        />
+                        
+                        {/* Existing Objects Context */}
+                        {objects
+                          .filter(o => o.museum_id === parseInt(formData.museum_id) && o.latitude && o.longitude && o.id !== editingObject?.id)
+                          .map(obj => (
+                            <div 
+                              key={obj.id}
+                              className="absolute -ml-2 -mt-2 pointer-events-none opacity-50"
+                              style={{ left: `${obj.longitude}%`, top: `${obj.latitude}%` }}
+                              title={obj.name || obj.title}
+                            >
+                              <div className="w-4 h-4 bg-neutral-400 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] text-white font-bold">{obj.id}</div>
+                            </div>
+                          ))}
+
+                        {/* Museum Entrance & Exit Context */}
+                        {(() => {
+                          const m = museums.find(mus => mus.id === parseInt(formData.museum_id));
+                          return (
+                            <>
+                              {m?.entrance_lat && m?.entrance_lng && (
+                                <div className="absolute -ml-4 -mt-4 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow pointer-events-none" style={{ left: `${m.entrance_lng}%`, top: `${m.entrance_lat}%` }}>
+                                  ENTRANCE
+                                </div>
+                              )}
+                              {m?.exit_lat && m?.exit_lng && (
+                                <div className="absolute -ml-3 -mt-4 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow pointer-events-none" style={{ left: `${m.exit_lng}%`, top: `${m.exit_lat}%` }}>
+                                  EXIT
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+
+                        {/* Current Object Pin */}
+                        {formData.latitude && formData.longitude && (
+                          <div 
+                            className="absolute -ml-3 -mt-6 pointer-events-none transition-all duration-300 drop-shadow-lg"
+                            style={{ left: `${formData.longitude}%`, top: `${formData.latitude}%` }}
+                          >
+                            <svg width="24" height="30" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M20 0C8.954 0 0 8.954 0 20C0 35 20 50 20 50C20 50 40 35 40 20C40 8.954 31.046 0 20 0Z" fill="#a07a5f"/>
+                              <circle cx="20" cy="18" r="8" fill="white"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-4 text-xs font-mono text-neutral-400 justify-end">
+                        <span>X: {formData.longitude || '--'}%</span>
+                        <span>Y: {formData.latitude || '--'}%</span>
+                      </div>
+                    </div>
+                  )}
+
                   <h3 className="font-semibold text-lg border-b pb-2 pt-4">Media</h3>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">Image URL</label>
-                    <input type="url" value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" />
+                    <label className="block text-sm font-medium text-neutral-700">Image *</label>
+                    <div className="mt-1 flex items-center space-x-4">
+                      <input type="url" required value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} className="block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" placeholder="Image URL" />
+                      <span className="text-neutral-500 text-sm">OR</span>
+                      <label className="cursor-pointer bg-neutral-100 border border-neutral-300 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
+                        {isUploading ? 'Uploading...' : 'Upload File'}
+                        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleUpload(e, 'image_url')} disabled={isUploading} />
+                      </label>
+                    </div>
+                    {formData.image_url && (
+                      <div className="mt-2">
+                        <img src={formData.image_url} alt="Preview" className="h-20 object-cover rounded border border-neutral-200" onError={(e) => e.target.style.display = 'none'} />
+                      </div>
+                    )}
+                    <p className="text-xs text-neutral-400 mt-1">Provide an image url or upload an image. Audio, Video, and 3D model will be auto-generated by AI.</p>
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-blue-800">🤖 AI Auto-Generation</p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      When you save this object with an image URL, our AI will automatically generate:
+                    </p>
+                    <ul className="text-xs text-blue-600 mt-1 list-disc list-inside space-y-0.5">
+                      <li>🔊 Audio narration (museum guide style)</li>
+                      <li>🎬 Video experience (image + AI narration)</li>
+                      <li>🧊 3D model (from the image)</li>
+                    </ul>
+                    <p className="text-xs text-blue-500 mt-2">You can optionally override any of these below:</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700">Audio (optional override)</label>
+                    <div className="mt-1 flex items-center space-x-4">
+                      <input type="url" value={formData.audio_url} onChange={e => setFormData({...formData, audio_url: e.target.value})} className="block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" placeholder="Leave empty for AI-generated audio" />
+                      <span className="text-neutral-500 text-sm">OR</span>
+                      <label className="cursor-pointer bg-neutral-100 border border-neutral-300 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
+                        {isUploading ? 'Uploading...' : 'Upload File'}
+                        <input type="file" accept="audio/*" className="hidden" onChange={(e) => handleUpload(e, 'audio_url')} disabled={isUploading} />
+                      </label>
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-neutral-700">3D Model URL</label>
-                    <input type="url" value={formData.model_3d_url} onChange={e => setFormData({...formData, model_3d_url: e.target.value})} className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700">Audio URL</label>
-                    <input type="url" value={formData.audio_url} onChange={e => setFormData({...formData, audio_url: e.target.value})} className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" />
+                    <label className="block text-sm font-medium text-neutral-700">3D Model (optional override)</label>
+                    <div className="mt-1 flex items-center space-x-4">
+                      <input type="url" value={formData.model_3d_url} onChange={e => setFormData({...formData, model_3d_url: e.target.value})} className="block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" placeholder="Leave empty for AI-generated 3D model" />
+                      <span className="text-neutral-500 text-sm">OR</span>
+                      <label className="cursor-pointer bg-neutral-100 border border-neutral-300 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
+                        {isUploading ? 'Uploading...' : 'Upload File'}
+                        <input type="file" accept=".glb,.gltf" className="hidden" onChange={(e) => handleUpload(e, 'model_3d_url')} disabled={isUploading} />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { extractObjectId } from '../utils/qrParser';
-import { getObject } from '../services/api';
+import { extractQRCode } from '../utils/qrParser';
+import { getObject, getMuseum } from '../services/api';
 import QRScanner from '../components/qr/QRScanner';
 import ManualObjectLookup from '../components/qr/ManualObjectLookup';
 import { ArrowLeft, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
@@ -15,9 +15,9 @@ const Scan = () => {
     // Prevent duplicate processing
     if (scanStatus === 'success' || scanStatus === 'loading') return;
 
-    const objectId = extractObjectId(payload);
+    const qrData = extractQRCode(payload);
 
-    if (!objectId) {
+    if (!qrData) {
       setScanStatus('invalid');
       return;
     }
@@ -25,17 +25,17 @@ const Scan = () => {
     setScanStatus('loading');
     
     try {
-      const object = await getObject(objectId);
-      
-      // Success!
-      setScanStatus('success');
-      setScannedId(object.id);
-      
-      // Briefly show success state, then navigate
-      setTimeout(() => {
-        navigate(`/objects/${object.id}`);
-      }, 1000);
-      
+      if (qrData.type === 'object') {
+        const object = await getObject(qrData.id);
+        setScanStatus('success');
+        setScannedId(object.id);
+        setTimeout(() => navigate(`/objects/${object.id}`), 1000);
+      } else if (qrData.type === 'museum') {
+        const museum = await getMuseum(qrData.id);
+        setScanStatus('success');
+        setScannedId(museum.id);
+        setTimeout(() => navigate(`/museums/${museum.id}`), 1000);
+      }
     } catch (err) {
       if (err.response && err.response.status === 404) {
         setScanStatus('not-found');
@@ -64,9 +64,9 @@ const Scan = () => {
       </nav>
 
       <div className="mb-10 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-neutral-900 mb-4">Scan an Object</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-neutral-900 mb-4">Scan QR Code</h1>
         <p className="text-lg text-neutral-600 max-w-xl mx-auto">
-          Point your camera at the QR code displayed near a museum object to explore its digital counterpart.
+          Point your camera at the QR code displayed near a museum or object to explore its digital counterpart.
         </p>
       </div>
 
@@ -81,15 +81,15 @@ const Scan = () => {
           {scanStatus === 'loading' && (
             <div className="bg-neutral-50 rounded-3xl p-12 text-center border border-neutral-200 aspect-square flex flex-col items-center justify-center">
               <RefreshCw className="w-16 h-16 text-neutral-900 animate-spin mb-6 mx-auto" />
-              <h2 className="text-2xl font-bold text-neutral-900 mb-2">Looking up object...</h2>
+              <h2 className="text-2xl font-bold text-neutral-900 mb-2">Looking up item...</h2>
             </div>
           )}
 
           {scanStatus === 'success' && (
             <div className="bg-green-50 rounded-3xl p-12 text-center border border-green-200 aspect-square flex flex-col items-center justify-center">
               <CheckCircle className="w-20 h-20 text-green-500 mb-6 mx-auto" />
-              <h2 className="text-2xl font-bold text-green-900 mb-2">Object Found!</h2>
-              <p className="text-green-700">Opening object details...</p>
+              <h2 className="text-2xl font-bold text-green-900 mb-2">Item Found!</h2>
+              <p className="text-green-700">Opening details...</p>
             </div>
           )}
 
@@ -97,7 +97,7 @@ const Scan = () => {
             <div className="bg-red-50 rounded-3xl p-12 text-center border border-red-200 aspect-square flex flex-col items-center justify-center">
               <AlertCircle className="w-20 h-20 text-red-500 mb-6 mx-auto" />
               <h2 className="text-2xl font-bold text-red-900 mb-2">Invalid QR Code</h2>
-              <p className="text-red-700 mb-8">That QR code is not a valid museum object code.</p>
+              <p className="text-red-700 mb-8">That QR code is not a valid museum or object code.</p>
               <button 
                 onClick={handleScanAgain}
                 className="px-8 py-3 bg-red-900 text-white font-bold rounded-lg hover:bg-red-800 transition-colors"
@@ -110,8 +110,8 @@ const Scan = () => {
           {scanStatus === 'not-found' && (
             <div className="bg-amber-50 rounded-3xl p-12 text-center border border-amber-200 aspect-square flex flex-col items-center justify-center">
               <AlertCircle className="w-20 h-20 text-amber-500 mb-6 mx-auto" />
-              <h2 className="text-2xl font-bold text-amber-900 mb-2">Object Not Found</h2>
-              <p className="text-amber-700 mb-8">The QR code does not correspond to an object in this museum system.</p>
+              <h2 className="text-2xl font-bold text-amber-900 mb-2">Item Not Found</h2>
+              <p className="text-amber-700 mb-8">The QR code does not correspond to an item in this system.</p>
               <button 
                 onClick={handleScanAgain}
                 className="px-8 py-3 bg-amber-900 text-white font-bold rounded-lg hover:bg-amber-800 transition-colors"

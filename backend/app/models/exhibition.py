@@ -10,7 +10,7 @@ class Exhibition(db.Model):
     subtitle = db.Column(db.String(255), nullable=True)
     description = db.Column(db.Text, nullable=True)
     long_description = db.Column(db.Text, nullable=True)
-    image = db.Column(db.String(255), nullable=True)
+    image = db.Column(db.Text, nullable=True)
     category = db.Column(db.String(100), nullable=True)
     theme = db.Column(db.String(100), nullable=True)
     period = db.Column(db.String(100), nullable=True)

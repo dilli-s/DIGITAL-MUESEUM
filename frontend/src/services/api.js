@@ -17,6 +17,29 @@ const apiClient = axios.create({
   },
 });
 
+apiClient.interceptors.request.use((config) => {
+  if (config.data && typeof config.data === 'object') {
+    const cleanUrl = (url) => {
+      if (typeof url === 'string' && url.includes('google.com/imgres')) {
+        try {
+          const urlObj = new URL(url);
+          const imgurl = urlObj.searchParams.get('imgurl');
+          if (imgurl) return imgurl;
+        } catch (e) {
+          // invalid url
+        }
+      }
+      return url;
+    };
+    
+    if (config.data.image) config.data.image = cleanUrl(config.data.image);
+    if (config.data.image_url) config.data.image_url = cleanUrl(config.data.image_url);
+    if (config.data.audio_url) config.data.audio_url = cleanUrl(config.data.audio_url);
+    if (config.data.model_3d_url) config.data.model_3d_url = cleanUrl(config.data.model_3d_url);
+  }
+  return config;
+});
+
 export const healthCheck = async () => {
   try {
     const response = await apiClient.get('/health');
@@ -569,6 +592,39 @@ export const getLearningById = async (id) => {
   } catch (error) {
     throw error;
   }
+};
+
+// --- File Upload ---
+export const uploadFile = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post('/admin/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};
+
+// Admin Users
+export const getAdminUsers = async () => {
+  const response = await apiClient.get('/admin/users');
+  return response.data;
+};
+
+export const createAdminUser = async (data) => {
+  const response = await apiClient.post('/admin/users', data);
+  return response.data;
+};
+
+export const updateAdminUser = async (id, data) => {
+  const response = await apiClient.put(`/admin/users/${id}`, data);
+  return response.data;
+};
+
+export const deleteAdminUser = async (id) => {
+  const response = await apiClient.delete(`/admin/users/${id}`);
+  return response.data;
 };
 
 export default apiClient;

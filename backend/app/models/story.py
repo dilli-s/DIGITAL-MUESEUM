@@ -9,7 +9,7 @@ class Story(db.Model):
     object_id = db.Column(db.Integer, db.ForeignKey('objects.id'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
     summary = db.Column(db.Text, nullable=True)
-    image = db.Column(db.String(255), nullable=True)
+    image = db.Column(db.Text, nullable=True)
     
     content = db.Column(JSON, nullable=True)
     

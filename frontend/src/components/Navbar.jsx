@@ -14,10 +14,10 @@ const Navbar = () => {
   };
 
   const navLinks = [
-    { name: 'Home', path: '/' },
+    { name: 'Scan QR', path: '/' },
+    { name: 'Home', path: '/home' },
     { name: 'Museums', path: '/museums' },
     { name: 'Physical Museum', path: '/physical' },
-    { name: 'Scan Object', path: '/scan' },
     { name: 'Assistant', path: '/assistant' },
   ];
 

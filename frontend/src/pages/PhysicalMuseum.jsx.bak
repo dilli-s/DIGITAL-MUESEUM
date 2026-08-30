@@ -1,0 +1,1041 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { QrCode, MapPin, Navigation, Scan, Map, Headphones, BookOpen, Building2, ChevronRight, Wifi, WifiOff, Volume2, Clock, X, CheckCircle, AlertCircle, RefreshCw, Download, ArrowRight, Camera, Compass, ZoomIn, Sparkles, Search, Layers, ShieldAlert, Diamond, Bath, Coffee, DoorOpen } from 'lucide-react';
+import { getMediaUrl } from '../utils/media';
+import API_BASE_URL from '../config/api';
+import { calculateDistance, generateTurnByTurnDirections, translateGpsToMap } from '../utils/geo';
+
+// ── QR Scanner (jsQR via html5-qrcode) ──────────────────────────────────────
+const InlineQRScanner = ({ onScan, onClose }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let stopped = false;
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) { videoRef.current.srcObject = stream; }
+        tick();
+      } catch (e) { setError('Camera access denied. Please allow camera permission.'); }
+    };
+
+    const tick = async () => {
+      if (stopped) return;
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (video && video.readyState === video.HAVE_ENOUGH_DATA && canvas) {
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        try {
+          const { default: jsQR } = await import('jsqr');
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code?.data) { onScan(code.data); return; }
+        } catch {}
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    startCamera();
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, [onScan]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      <div className="flex items-center justify-between p-4 text-white">
+        <h2 className="font-bold text-lg">Scan QR Code</h2>
+        <button onClick={onClose} className="p-2 rounded-full bg-white/10"><X className="w-5 h-5" /></button>
+      </div>
+      {error ? (
+        <div className="flex-1 flex items-center justify-center p-8 text-center text-white">
+          <div><AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-400" /><p>{error}</p></div>
+        </div>
+      ) : (
+        <div className="flex-1 relative">
+          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+          <canvas ref={canvasRef} className="hidden" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-64 h-64 border-4 border-white rounded-2xl opacity-80" />
+          </div>
+          <p className="absolute bottom-8 left-0 right-0 text-center text-white/80 text-sm">Point at a QR code</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
+const MuseumFloorMap = ({ galleries, objects, selectedGallery, onSelectGallery }) => {
+  // Group galleries by their actual floor allocation
+  const galleriesByFloor = galleries.reduce((acc, g) => {
+    const floor = g.floor || 'Ground Floor';
+    if (!acc[floor]) acc[floor] = [];
+    acc[floor].push(g);
+    return acc;
+  }, {});
+  
+  // Try to sort floors logically (Ground Floor first, then Floor 1, Floor 2, etc.)
+  const sortedFloors = Object.keys(galleriesByFloor).sort((a, b) => {
+    if (a.toLowerCase().includes('ground') && !b.toLowerCase().includes('ground')) return -1;
+    if (!a.toLowerCase().includes('ground') && b.toLowerCase().includes('ground')) return 1;
+    return a.localeCompare(b);
+  });
+
+  return (
+    <div className="bg-neutral-900 rounded-2xl p-4 text-white">
+      <div className="flex items-center gap-2 mb-4">
+        <Map className="w-4 h-4 text-neutral-400" />
+        <span className="text-sm font-semibold text-neutral-300">Precise Floor Navigation</span>
+        <span className="ml-auto text-[10px] text-neutral-500 uppercase tracking-wider">Entrance → Exit</span>
+      </div>
+      {galleries.length === 0 ? (
+        <div className="text-center py-8 text-neutral-500 text-sm">No gallery map available</div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {/* Entrance */}
+          <div className="w-full flex items-center justify-center p-2 border-2 border-dashed border-emerald-500/50 rounded-xl bg-emerald-900/20 text-emerald-400 text-xs font-bold uppercase tracking-widest">
+            ↓ Main Entrance & Tickets ↓
+          </div>
+          
+          <div className="flex gap-2">
+             {/* Elevator Shaft */}
+             <div className="w-8 flex-shrink-0 flex flex-col gap-1">
+               <div className="flex-1 bg-neutral-800 rounded-xl border border-neutral-700 flex flex-col items-center justify-center text-neutral-500 text-[10px] font-bold py-4">
+                 <span>E</span><span>L</span><span>E</span><span>V</span><span>A</span><span>T</span><span>O</span><span>R</span>
+               </div>
+             </div>
+             
+             {/* Floor-by-Floor Grouping */}
+             <div className="flex-1 flex flex-col gap-3">
+               {sortedFloors.map((floorName, floorIndex) => (
+                 <div key={floorName} className="flex flex-col gap-2">
+                   <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest border-b border-neutral-800 pb-1">
+                     {floorName}
+                   </div>
+                   <div className="grid grid-cols-2 gap-2">
+                     {galleriesByFloor[floorName].map((g, i) => {
+                       const objCount = objects.filter(o => o.gallery_id === g.id).length;
+                       const isSelected = selectedGallery?.id === g.id;
+                       return (
+                         <button key={g.id} onClick={() => onSelectGallery(isSelected ? null : g)}
+                           className={`relative rounded-xl p-3 text-left transition-all border-2 flex flex-col justify-between ${isSelected ? 'border-white bg-white/20 scale-[0.98] shadow-lg' : 'border-white/10 bg-white/5 hover:bg-white/10'} ${galleriesByFloor[floorName].length === 1 ? 'col-span-2' : ''}`}
+                           style={{ minHeight: 72 }}>
+                           <div className="text-xs font-bold text-white leading-tight pr-4">{g.name}</div>
+                           <div className="flex items-center justify-between mt-3">
+                             <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-widest bg-black/40 px-1.5 py-0.5 rounded">{floorName}</span>
+                             {objCount > 0 && <span className="px-2 py-0.5 bg-indigo-500 text-white rounded-full text-[10px] font-bold shadow-sm">{objCount} obj</span>}
+                           </div>
+                         </button>
+                       );
+                     })}
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            <div className="rounded-xl p-2 bg-blue-900/40 border border-blue-500/20 flex flex-col items-center justify-center text-center">
+              <span className="text-base mb-1">🚻</span>
+              <span className="text-[10px] text-blue-300 font-medium">Restrooms</span>
+            </div>
+            <div className="rounded-xl p-2 bg-green-900/40 border border-green-500/20 flex flex-col items-center justify-center text-center">
+              <span className="text-base mb-1">☕</span>
+              <span className="text-[10px] text-green-300 font-medium">Café</span>
+            </div>
+            <div className="rounded-xl p-2 bg-purple-900/40 border border-purple-500/20 flex flex-col items-center justify-center text-center">
+              <span className="text-base mb-1">🛍️</span>
+              <span className="text-[10px] text-purple-300 font-medium">Gift Shop</span>
+            </div>
+          </div>
+
+          {/* Exit */}
+          <div className="w-full mt-2 flex items-center justify-center p-2 border-2 border-dashed border-red-500/50 rounded-xl bg-red-900/20 text-red-400 text-xs font-bold uppercase tracking-widest">
+            ↑ Last Exit ↑
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Object Card (offline) ────────────────────────────────────────────────────
+const OfflineObjectCard = ({ obj, onClick }) => (
+  <button onClick={() => onClick(obj)} className="w-full flex items-center gap-3 p-3 bg-white rounded-xl border border-neutral-200 hover:border-neutral-900 hover:shadow-sm transition-all text-left">
+    <div className="w-12 h-12 rounded-lg bg-neutral-100 flex-shrink-0 overflow-hidden">
+      {obj.image ? <img src={getMediaUrl(obj.image)} alt={obj.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ZoomIn className="w-5 h-5 text-neutral-300" /></div>}
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="font-semibold text-neutral-900 text-sm truncate">{obj.name}</p>
+      {obj.period && <p className="text-xs text-neutral-500">{obj.period}</p>}
+    </div>
+    <ChevronRight className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+  </button>
+);
+
+// ── Object Detail Sheet ──────────────────────────────────────────────────────
+const ObjectDetailSheet = ({ obj, onClose }) => {
+  const navigate = useNavigate();
+  if (!obj) return null;
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col" style={{ background: 'rgba(0,0,0,0.7)' }}>
+      <div className="flex-1" onClick={onClose} />
+      <div className="bg-white rounded-t-3xl overflow-y-auto max-h-[85vh] p-6 pb-safe">
+        <div className="w-12 h-1 bg-neutral-300 rounded-full mx-auto mb-5" />
+        {obj.image && (
+          <div className="w-full h-48 rounded-2xl overflow-hidden mb-5 bg-neutral-100">
+            <img src={getMediaUrl(obj.image)} alt={obj.name} className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div className="mb-1 text-xs font-bold text-neutral-400 uppercase tracking-wider">{obj.category || 'Artifact'}</div>
+        <h2 className="text-2xl font-bold text-neutral-900 mb-1">{obj.name}</h2>
+        {obj.period && <p className="text-sm text-neutral-500 mb-4">{obj.period} {obj.origin && `· ${obj.origin}`}</p>}
+        {obj.description && <p className="text-sm text-neutral-700 leading-relaxed mb-5">{obj.description}</p>}
+        {obj.audio_url && (
+          <div className="mb-4 bg-neutral-50 rounded-xl p-4">
+            <p className="text-xs font-semibold text-neutral-500 mb-2 flex items-center gap-1"><Volume2 className="w-3 h-3" /> Audio Guide</p>
+            <audio controls src={getMediaUrl(obj.audio_url)} className="w-full" preload="none" />
+          </div>
+        )}
+        <div className="flex gap-3">
+          <button onClick={() => { onClose(); navigate(`/objects/${obj.id}`); }}
+            className="flex-1 py-3 bg-neutral-900 text-white font-bold rounded-xl text-sm hover:bg-neutral-800 transition-colors">
+            Full Details →
+          </button>
+          <button onClick={onClose} className="py-3 px-5 border border-neutral-200 rounded-xl text-sm font-semibold text-neutral-700">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Directions Sheet Overlay ───────────────────────────────────────────────────
+const DirectionsSheet = ({ routePoints, onClose }) => {
+  if (!routePoints || routePoints.length === 0) return null;
+  
+  const steps = generateTurnByTurnDirections(routePoints);
+  
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center pointer-events-none">
+      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm pointer-events-auto transition-opacity" onClick={onClose} />
+      
+      <div className="bg-white w-full max-w-2xl rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] pointer-events-auto transform transition-transform duration-300 translate-y-0 max-h-[85vh] flex flex-col relative z-10">
+        <div className="flex items-center justify-between p-5 border-b border-neutral-100">
+          <div>
+            <h2 className="text-xl font-bold text-neutral-900">Navigation Steps</h2>
+            <p className="text-sm text-neutral-500">{steps.length} steps to destination</p>
+          </div>
+          <button onClick={onClose} className="p-2 bg-neutral-100 text-neutral-600 rounded-full hover:bg-neutral-200 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {steps.map((step, i) => (
+            <div key={i} className="flex gap-4 items-start relative">
+              {i !== steps.length - 1 && <div className="absolute left-[19px] top-10 bottom-[-24px] w-0.5 bg-neutral-200" />}
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 z-10 shadow-sm border border-neutral-100" style={{
+                 backgroundColor: step.type === 'arrive' ? '#10b981' : 'white',
+                 color: step.type === 'arrive' ? 'white' : '#005f73'
+              }}>
+                {step.type === 'straight' && <Navigation className="w-5 h-5" />}
+                {step.type === 'turn-right' && <ArrowRight className="w-5 h-5 rotate-45" />}
+                {step.type === 'turn-left' && <ArrowRight className="w-5 h-5 -rotate-[135deg]" />}
+                {step.type === 'u-turn' && <RefreshCw className="w-5 h-5" />}
+                {step.type === 'arrive' && <MapPin className="w-5 h-5" />}
+              </div>
+              <div className="pt-1">
+                <p className="font-bold text-neutral-900 text-lg">{step.instruction}</p>
+                {step.distance > 0 && <p className="text-neutral-500 font-medium">{Math.round(step.distance)} meters</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="p-5 border-t border-neutral-100">
+          <button onClick={onClose} className="w-full py-4 bg-[#005f73] text-white rounded-xl font-bold hover:bg-[#004757] transition-colors shadow-md">
+            Resume Navigation
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Main Physical Museum Page ────────────────────────────────────────────────
+const PhysicalMuseum = () => {
+  const navigate = useNavigate();
+  const [navMode, setNavMode] = useState('setup'); // 'setup' | 'navigating'
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // Data
+  const [museums, setMuseums] = useState([]);
+  const [galleries, setGalleries] = useState([]);
+  const [objects, setObjects] = useState([]);
+  
+  // Selection
+  const [selectedMuseum, setSelectedMuseum] = useState(null);
+  const [selectedObject, setSelectedObject] = useState(null);
+  
+  // Scanners and UI
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Live Navigation State
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [destination, setDestination] = useState(null);
+  const [showDirectionsSheet, setShowDirectionsSheet] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  
+  // GPS Tracking State
+  const [isLocating, setIsLocating] = useState(false);
+  const [gpsError, setGpsError] = useState(null);
+  // Continuous Live Tracking States
+  const [currentBearing, setCurrentBearing] = useState(0);
+  const [followMode, setFollowMode] = useState(true);
+  const [blockedEdges, setBlockedEdges] = useState([]);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const routeRef = useRef([]);
+  const anchorGPS = useRef(null);
+  const anchorMap = useRef(null);
+  const currentLocationRef = useRef(null);
+
+  useEffect(() => {
+     currentLocationRef.current = currentLocation;
+  }, [currentLocation]);
+
+  useEffect(() => {
+    const online = () => setIsOnline(true);
+    const offline = () => setIsOnline(false);
+    window.addEventListener('online', online);
+    window.addEventListener('offline', offline);
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => { 
+      window.removeEventListener('online', online); 
+      window.removeEventListener('offline', offline); 
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  // Load from API
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [mr, gr, or_] = await Promise.all([
+          fetch(`${API_BASE_URL}/museums?per_page=50`).then(r => r.json()),
+          fetch(`${API_BASE_URL}/galleries?per_page=100`).then(r => r.json()),
+          fetch(`${API_BASE_URL}/objects?per_page=200`).then(r => r.json()),
+        ]);
+        
+        const loadedMuseums = mr.data || [];
+        setMuseums(loadedMuseums);
+        setGalleries(gr.data || []);
+        setObjects(or_.data || []);
+        
+        // Auto-start navigation from entrance to exit when app restarts
+        if (loadedMuseums.length > 0) {
+            const m = loadedMuseums[0];
+            setSelectedMuseum(m);
+            setNavMode('navigating');
+            const entMap = translateGpsToMap(m.entrance_lat || 50, m.entrance_lng || 50, m);
+            setCurrentLocation(entMap);
+            
+            // Automatically set route to Exit
+            if (m.exit_lat && m.exit_lng) {
+                const exitMap = translateGpsToMap(m.exit_lat, m.exit_lng, m);
+                setDestination(exitMap);
+            }
+        }
+      } catch (err) {
+        console.error("Failed to load museum data", err);
+      }
+      setIsLoaded(true);
+    };
+    load();
+  }, []);
+
+  const currentMuseumObjects = React.useMemo(() => {
+    if (!selectedMuseum) return [];
+    return objects.filter(o => o.museum_id === selectedMuseum.id && o.latitude && o.longitude);
+  }, [objects, selectedMuseum]);
+
+  const parsedGraph = React.useMemo(() => {
+    if (!selectedMuseum?.pathing_graph) return null;
+    if (typeof selectedMuseum.pathing_graph === 'object') return selectedMuseum.pathing_graph;
+    try {
+      return JSON.parse(selectedMuseum.pathing_graph);
+    } catch (e) {
+      console.error("Failed to parse pathing_graph", e);
+      return null;
+    }
+  }, [selectedMuseum?.pathing_graph]);
+
+  const startNavigation = (museum) => {
+    setSelectedMuseum(museum);
+    setNavMode('navigating');
+    const entMap = translateGpsToMap(museum.entrance_lat || 50, museum.entrance_lng || 50, museum);
+    setCurrentLocation(entMap);
+    setDestination(null);
+    setFollowMode(true);
+  };
+
+  const handleQRScan = useCallback(async (data) => {
+    setShowScanner(false);
+    // Setup mode logic: scan museum
+    if (navMode === 'setup') {
+       // Look for museum ID in URL or try matching name
+       const match = data.match(/museums\/(\d+)/) || data.match(/museum[_-]?(\d+)/i);
+       if (match) {
+         const found = museums.find(m => m.id === parseInt(match[1]));
+         if (found) { startNavigation(found); return; }
+       }
+       setScanResult('not-found');
+       setTimeout(() => setScanResult(null), 3000);
+       return;
+    }
+
+    // Normal mode logic: scan object
+    const match = data.match(/objects\/(\d+)/) || data.match(/object[_-]?(\d+)/i);
+    const codeMatch = data.match(/code[=:]?([A-Z0-9-]+)/i);
+    let obj = null;
+    try {
+      if (match) {
+        const r = await fetch(`${API_BASE_URL}/objects/${match[1]}`);
+        const d = await r.json();
+        obj = d.data;
+      } else if (codeMatch) {
+        // Fallback: search objects array for the code
+        obj = objects.find(o => o.code === codeMatch[1]);
+      } else {
+        const num = parseInt(data);
+        if (!isNaN(num)) {
+          const r = await fetch(`${API_BASE_URL}/objects/${num}`);
+          const d = await r.json();
+          obj = d.data;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch scanned object", e);
+    }
+    
+    if (obj) { 
+      setSelectedObject(obj); 
+      setScanResult('found');
+      if (navMode === 'navigating') {
+         const locMap = translateGpsToMap(obj.latitude, obj.longitude, selectedMuseum);
+         setCurrentLocation(locMap);
+         setDestination(null);
+         setCurrentStepIndex(0);
+      }
+    } else {
+      setScanResult('not-found');
+    }
+    setTimeout(() => setScanResult(null), 3000);
+  }, [navMode, museums, objects]);
+
+  const getOrthogonalRoute = (points) => {
+    if (points.length < 2) return points;
+    const route = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      route.push(p1);
+      route.push({ lat: p1.lat, lng: p2.lng });
+    }
+    route.push(points[points.length - 1]);
+    return route;
+  };
+
+  const [serverRoute, setServerRoute] = useState([]);
+  const [serverNodes, setServerNodes] = useState([]);
+
+  useEffect(() => {
+    fetch('http://localhost:5001/api/nodes')
+      .then(r => r.json())
+      .then(d => {
+          if (d.data) setServerNodes(d.data);
+      })
+      .catch(e => console.error("Error fetching map nodes:", e));
+  }, []);
+
+  const getNearestServerNode = (lat, lng) => {
+    if (!serverNodes || serverNodes.length === 0) return null;
+    let nearest = null;
+    let minDist = Infinity;
+    serverNodes.forEach(n => {
+      // API returns x and y coordinates (x = lng, y = lat usually, but let's check our schema)
+      const dist = Math.sqrt(Math.pow(n.x_coordinate - lng, 2) + Math.pow(n.y_coordinate - lat, 2));
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = n;
+      }
+    });
+    return nearest;
+  };
+
+  useEffect(() => {
+    if (!currentLocation || !destination || serverNodes.length === 0) {
+      setServerRoute([]);
+      return;
+    }
+    
+    const startNode = getNearestServerNode(currentLocation.lat, currentLocation.lng);
+    const endNode = getNearestServerNode(destination.lat, destination.lng);
+    
+    if (startNode && endNode) {
+      fetch(`http://localhost:5001/api/route?from=${startNode.id}&to=${endNode.id}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.path && data.path.length > 0) {
+                // Map the path nodes to {lat, lng} for the frontend SVG
+                const routeCoords = data.path.map(n => ({ lat: n.y_coordinate, lng: n.x_coordinate }));
+                setServerRoute([currentLocation, ...routeCoords, destination]);
+            } else {
+                setServerRoute(getOrthogonalRoute([currentLocation, destination]));
+            }
+        })
+        .catch(e => {
+            console.error("Pathfinding API error:", e);
+            setServerRoute(getOrthogonalRoute([currentLocation, destination]));
+        });
+    }
+  }, [destination, serverNodes]); // Calculate route when destination changes
+
+  // ── Unified Position Tracking Architecture ───────────────────────────────────
+  // All navigation systems (GPS, BLE, Steps, AR) should funnel into this exact function.
+  const setUserPosition = useCallback((newLat, newLng) => {
+    setCurrentLocation(prevLoc => {
+       if (prevLoc) {
+           const dy = newLat - prevLoc.lat;
+           const dx = newLng - prevLoc.lng;
+           if (Math.abs(dx) > 0.0001 || Math.abs(dy) > 0.0001) {
+               const toDeg = 180 / Math.PI;
+               let brng = Math.atan2(dy, dx) * toDeg;
+               brng = (brng + 360) % 360;
+               // Smooth bearing update could be added here, but direct is fine for prototype
+               setCurrentBearing(brng);
+           }
+       }
+       return { lat: newLat, lng: newLng };
+    });
+  }, []);
+
+  // Sync latest route for navigation
+  const route = serverRoute;
+
+  const startLocating = () => {
+      setIsLocating(true);
+      setGpsError(null);
+      anchorGPS.current = null;
+      anchorMap.current = null;
+  };
+
+  // Continuous Native GPS Tracking Loop
+  useEffect(() => {
+      if (!isLocating) return;
+      
+      if (!navigator.geolocation) {
+          setGpsError("Geolocation is not supported by your browser.");
+          setIsLocating(false);
+          return;
+      }
+      
+      const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+              const { latitude, longitude } = position.coords;
+              const hasBounds = selectedMuseum && selectedMuseum.bounds_tl_lat != null;
+              if (hasBounds) {
+                  const mapped = translateGpsToMap(latitude, longitude, selectedMuseum);
+                  setUserPosition(mapped.lat, mapped.lng);
+              } else {
+                  // Pure GPS pass-through if no bounds configured (legacy percent mode or direct lat/lng)
+                  setUserPosition(latitude, longitude);
+              }
+              setGpsError(null);
+          },
+          (error) => {
+              console.error("GPS Error:", error);
+              setGpsError(error.message || "Failed to acquire GPS signal.");
+              setIsLocating(false);
+          },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      );
+      
+      return () => navigator.geolocation.clearWatch(watchId);
+  }, [isLocating, selectedMuseum, setUserPosition]);
+
+  if (!isLoaded) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <RefreshCw className="w-8 h-8 animate-spin text-neutral-400" />
+      <p className="text-neutral-500">Loading museum data...</p>
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-2xl mx-auto pb-24 min-h-screen">
+      {/* Header */}
+      {navMode !== 'navigating' && (
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-neutral-200 px-4 py-3 -mx-4 mb-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-neutral-900">{navMode === 'setup' ? 'Live Museum Guide' : `Navigating: ${selectedMuseum?.name}`}</h1>
+              <p className="text-xs text-neutral-500 flex items-center gap-1">
+                {isOnline ? <><Wifi className="w-3 h-3 text-green-500" /> Online</> : <><WifiOff className="w-3 h-3 text-amber-500" /> Offline mode</>}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scanResult === 'not-found' && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-sm animate-pulse">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" /> QR code not recognized. Try again.
+        </div>
+      )}
+
+      {gpsError && (
+        <div className="mb-4 p-3 mx-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-amber-700 text-sm z-40 relative">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" /> 
+          <div>
+              <p className="font-bold">GPS Error</p>
+              <p>{gpsError}</p>
+          </div>
+        </div>
+      )}
+
+      {/* SETUP MODE */}
+      {navMode === 'setup' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Setup screen content */}
+          {!isOnline && (
+            <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2 text-blue-700 text-sm">
+              <WifiOff className="w-4 h-4 flex-shrink-0" /> You're offline — using downloaded content.
+            </div>
+          )}
+
+          <div className="bg-neutral-900 text-white p-8 rounded-3xl mb-8 shadow-xl relative overflow-hidden flex flex-col items-center text-center">
+             <div className="absolute top-0 right-0 p-8 opacity-10"><Compass className="w-32 h-32" /></div>
+             <MapPin className="w-12 h-12 text-emerald-400 mb-4" />
+             <h2 className="text-2xl font-bold mb-2 z-10">Start Your Live Tour</h2>
+             <p className="text-neutral-300 mb-8 z-10 max-w-sm">Scan the museum entrance QR code to begin real-time navigation and object discovery.</p>
+             <button onClick={() => setShowScanner(true)} className="flex items-center gap-3 px-8 py-4 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-colors shadow-lg z-10">
+                <Camera className="w-5 h-5" /> SCAN MUSEUM
+             </button>
+          </div>
+
+          {museums.length > 0 && (
+            <section className="mb-6 px-2">
+              <div className="flex items-center gap-4 mb-4">
+                 <div className="h-px bg-neutral-200 flex-1" />
+                 <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Or select manually</span>
+                 <div className="h-px bg-neutral-200 flex-1" />
+              </div>
+              <div className="grid gap-3">
+                {museums.map(m => (
+                  <button key={m.id} onClick={() => startNavigation(m)}
+                    className="flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-2xl hover:border-neutral-400 hover:shadow-md transition-all text-left group">
+                    <div>
+                      <h3 className="font-bold text-neutral-900">{m.name}</h3>
+                      <p className="text-xs text-neutral-500 mt-0.5">{m.city || 'Unknown Location'}</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-neutral-300 group-hover:text-neutral-900 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          
+          {/* Install App Prompt */}
+          {deferredPrompt && (
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#005f73] text-white shadow-[0_-10px_20px_rgba(0,0,0,0.1)] flex items-center justify-between animate-in slide-in-from-bottom-full duration-500 rounded-t-3xl border-t border-[#004757]">
+              <div>
+                <h4 className="font-bold text-lg mb-0.5">Download App</h4>
+                <p className="text-xs text-white/80">Get the full offline museum experience</p>
+              </div>
+              <div className="flex gap-2 items-center">
+                <button onClick={() => setDeferredPrompt(null)} className="p-2 text-white/60 hover:text-white rounded-full transition-colors">
+                   <X className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={async () => {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') setDeferredPrompt(null);
+                  }}
+                  className="bg-white text-[#005f73] px-4 py-2 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 hover:bg-neutral-50 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Install
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* NAVIGATION MODE */}
+      {navMode === 'navigating' && (
+        <div className="animate-in fade-in zoom-in-95 duration-500">
+           
+           {!destination && (
+             <button onClick={() => setNavMode('setup')} className="absolute top-4 right-4 z-40 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border border-neutral-100 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition-colors pointer-events-auto">
+               <X className="w-5 h-5" />
+             </button>
+           )}
+
+           {/* Live Map View */}
+           <div className="w-full relative overflow-hidden bg-neutral-100 rounded-3xl shadow-xl border border-neutral-200" style={{ height: '600px' }}>
+              
+              {/* Google Maps style floating instruction banner */}
+              {selectedMuseum?.floorplan_image && (
+                 <div className="absolute top-4 left-4 right-4 z-30 pointer-events-none transition-opacity duration-300">
+                    {(() => {
+                       const route = serverRoute;
+                       const steps = generateTurnByTurnDirections(route);
+                       if (steps.length > 0) {
+                         const nextStep = steps[0];
+                         let icon = <Navigation className="w-6 h-6 text-white" />;
+                         if (nextStep.type.includes('left')) icon = <Navigation className="w-6 h-6 text-white -rotate-45" />;
+                         if (nextStep.type.includes('right')) icon = <Navigation className="w-6 h-6 text-white rotate-45" />;
+                         if (nextStep.type.includes('u-turn')) icon = <Navigation className="w-6 h-6 text-white rotate-180" />;
+
+                         const stepAfterNext = steps[1];
+                         let nextIcon = null;
+                         if (stepAfterNext) {
+                           nextIcon = <Navigation className="w-4 h-4 text-white" />;
+                           if (stepAfterNext.type.includes('left')) nextIcon = <Navigation className="w-4 h-4 text-white -rotate-45" />;
+                           if (stepAfterNext.type.includes('right')) nextIcon = <Navigation className="w-4 h-4 text-white rotate-45" />;
+                           if (stepAfterNext.type.includes('u-turn')) nextIcon = <Navigation className="w-4 h-4 text-white rotate-180" />;
+                         }
+
+                         return (
+                           <div className="flex flex-col items-start w-full pointer-events-auto relative">
+                              {/* Main Banner */}
+                              <div className="bg-[#005f73] rounded-2xl shadow-xl w-full flex items-center justify-between overflow-hidden relative border-b-4 border-[#003844]">
+                                 <div className="flex items-center w-full">
+                                    <div className="w-20 py-4 flex flex-col items-center justify-center bg-[#004757]">
+                                       {React.cloneElement(icon, { className: 'w-10 h-10 text-white stroke-[2.5]' })}
+                                       {nextStep.distance > 0 && <span className="text-sm font-bold text-white mt-1">{Math.round(nextStep.distance)}m</span>}
+                                    </div>
+                                    <div className="px-4 py-4 flex-1">
+                                       <span className="text-white/80 text-xs font-bold uppercase tracking-wider mb-1 block">Towards</span>
+                                       <h3 className="text-xl font-bold text-white leading-tight">{nextStep.instruction}</h3>
+                                    </div>
+                                    {/* Magic / Info button */}
+                                    <div className="pr-4">
+                                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm relative overflow-hidden group">
+                                         <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                         <Diamond className="w-5 h-5 text-blue-500 fill-blue-100 z-10" />
+                                      </div>
+                                    </div>
+                                 </div>
+                              </div>
+                              
+                              {stepAfterNext && (
+                                <div className="bg-[#004757] rounded-b-xl rounded-tr-none rounded-tl-none -mt-1 pt-3 pb-2 px-4 shadow-md flex items-center gap-2 z-[-1] ml-4">
+                                   <span className="text-white/90 text-sm font-bold">Then</span>
+                                   {nextIcon}
+                                </div>
+                              )}
+                           </div>
+                        );
+                      }
+                      return null;
+                   })()}
+                </div>
+              )}
+              {selectedMuseum?.floorplan_image ? (
+                  <div className="w-full h-full relative overflow-hidden bg-neutral-100 rounded-[20px] transition-transform duration-[1500ms] ease-out origin-center"
+                       style={followMode && currentLocation ? { 
+                           transform: `scale(2.5) translate(${50 - currentLocation.lng}%, ${50 - currentLocation.lat}%)` 
+                       } : {}}>
+                     <img 
+                       src={selectedMuseum.floorplan_image} 
+                       alt="Floorplan" 
+                       className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-80" 
+                    />
+                    <div className="absolute inset-0">
+                       <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                          {(() => {
+                              const allLines = [];
+                              if (parsedGraph?.edges && parsedGraph?.nodes) {
+                                  parsedGraph.edges.forEach((e, idx) => {
+                                      const n1 = parsedGraph.nodes[e[0]];
+                                      const n2 = parsedGraph.nodes[e[1]];
+                                      if (!n1 || !n2) return;
+                                      const isBlocked = blockedEdges.some(b => (b[0]===e[0] && b[1]===e[1]) || (b[0]===e[1] && b[1]===e[0]));
+                                      allLines.push(
+                                          <line
+                                             key={`edge-${idx}`}
+                                             x1={`${n1.lng}%`} y1={`${n1.lat}%`}
+                                             x2={`${n2.lng}%`} y2={`${n2.lat}%`}
+                                             stroke={isBlocked ? "#ef4444" : "#d4d4d8"}
+                                             strokeWidth="8"
+                                             className="cursor-pointer transition-colors hover:stroke-neutral-400 pointer-events-auto"
+                                             onClick={() => {
+                                                 if (isBlocked) {
+                                                     setBlockedEdges(prev => prev.filter(b => !( (b[0]===e[0] && b[1]===e[1]) || (b[0]===e[1] && b[1]===e[0]) )));
+                                                 } else {
+                                                     setBlockedEdges(prev => [...prev, e]);
+                                                     setIsRecalculating(true);
+                                                     setTimeout(() => setIsRecalculating(false), 2000);
+                                                 }
+                                             }}
+                                          />
+                                      );
+                                  });
+                              }
+
+                              const route = serverRoute;
+                              if (route.length < 2) return allLines;
+                              
+                              for (let i = 0; i < route.length - 1; i++) {
+                                const isCaution = i === Math.floor(route.length / 2);
+                                // shadow / alternate path styling
+                                allLines.push(
+                                   <line 
+                                      key={`shadow-${i}`} 
+                                      x1={`${route[i].lng}%`} y1={`${route[i].lat}%`} 
+                                      x2={`${route[i + 1].lng}%`} y2={`${route[i + 1].lat}%`} 
+                                      stroke="#93c5fd" strokeWidth="8" strokeLinecap="round" opacity="0.6"
+                                      className="pointer-events-none"
+                                   />
+                                );
+                                // main path
+                                allLines.push(
+                                   <line 
+                                      key={`main-${i}`} 
+                                      x1={`${route[i].lng}%`} y1={`${route[i].lat}%`} 
+                                      x2={`${route[i + 1].lng}%`} y2={`${route[i + 1].lat}%`} 
+                                      stroke={isCaution ? "#f59e0b" : "#4f46e5"} strokeWidth="5" strokeLinecap="round"
+                                      className="pointer-events-none"
+                                   />
+                                );
+                             }
+                             return allLines;
+                          })()}
+                       </svg>
+
+                       {currentLocation && (
+                         <div className="absolute w-5 h-5 bg-blue-500 rounded-full border-2 border-white -ml-2.5 -mt-2.5 shadow z-20 pointer-events-none" style={{ left: `${currentLocation.lng}%`, top: `${currentLocation.lat}%` }}>
+                            {/* Direction Cone */}
+                            <svg className="absolute w-24 h-24 -left-[44px] -top-[44px] pointer-events-none opacity-40 mix-blend-multiply transition-transform duration-300" 
+                                 style={{ transform: `rotate(${currentBearing}deg)`, transformOrigin: 'center' }} viewBox="0 0 100 100">
+                                <path d="M50 50 L20 0 Q50 -10 80 0 Z" fill="url(#coneGradient)" />
+                                <defs>
+                                    <linearGradient id="coneGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="1" />
+                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-50"></div>
+                         </div>
+                       )}
+
+                       {currentMuseumObjects.map((obj) => {
+                         const objMap = translateGpsToMap(obj.latitude, obj.longitude, selectedMuseum);
+                         return (
+                         <div
+                           key={obj.id}
+                           className="absolute -ml-3 -mt-6 cursor-pointer hover:scale-110 transition-transform z-10 pointer-events-auto"
+                           style={{ left: `${objMap.lng}%`, top: `${objMap.lat}%` }}
+                           onClick={() => setSelectedObject(obj)}
+                         >
+                            {selectedObject?.id === obj.id || destination?.lat === objMap.lat ? (
+                               <svg width="24" height="30" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 0C8.954 0 0 8.954 0 20C0 35 20 50 20 50C20 50 40 35 40 20C40 8.954 31.046 0 20 0Z" fill="#ff4d4d"/><circle cx="20" cy="18" r="8" fill="white"/></svg>
+                            ) : (
+                               <div className="relative">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#a07a5f"/><circle cx="12" cy="12" r="4" fill="white"/></svg>
+                               </div>
+                            )}
+                         </div>
+                         );
+                       })}
+                       
+                       {selectedMuseum?.washroom_lat && (() => {
+                         const wMap = translateGpsToMap(selectedMuseum.washroom_lat, selectedMuseum.washroom_lng, selectedMuseum);
+                         return (
+                         <div 
+                           className="absolute w-7 h-7 bg-white rounded-full border border-neutral-200 shadow-md pointer-events-auto cursor-pointer hover:scale-110 transition-transform flex items-center justify-center text-blue-500 z-20 -ml-3.5 -mt-3.5" 
+                           style={{ left: `${wMap.lng}%`, top: `${wMap.lat}%` }}
+                           onClick={() => setSelectedObject({ id: 'washroom', name: 'Washroom', latitude: selectedMuseum.washroom_lat, longitude: selectedMuseum.washroom_lng, creator: 'Museum Facility' })}
+                         ><Bath className="w-3.5 h-3.5" /></div>
+                         )
+                       })()}
+                       {selectedMuseum?.cafe_lat && (() => {
+                         const cMap = translateGpsToMap(selectedMuseum.cafe_lat, selectedMuseum.cafe_lng, selectedMuseum);
+                         return (
+                         <div 
+                           className="absolute w-7 h-7 bg-white rounded-full border border-neutral-200 shadow-md pointer-events-auto cursor-pointer hover:scale-110 transition-transform flex items-center justify-center text-orange-500 z-20 -ml-3.5 -mt-3.5" 
+                           style={{ left: `${cMap.lng}%`, top: `${cMap.lat}%` }}
+                           onClick={() => setSelectedObject({ id: 'cafe', name: 'Café', latitude: selectedMuseum.cafe_lat, longitude: selectedMuseum.cafe_lng, creator: 'Museum Facility' })}
+                         ><Coffee className="w-3.5 h-3.5" /></div>
+                         )
+                       })()}
+                       {selectedMuseum?.exit_lat && (() => {
+                         const eMap = translateGpsToMap(selectedMuseum.exit_lat, selectedMuseum.exit_lng, selectedMuseum);
+                         return (
+                         <div 
+                           className="absolute w-7 h-7 bg-white rounded-full border border-neutral-200 shadow-md pointer-events-auto cursor-pointer hover:scale-110 transition-transform flex items-center justify-center text-red-500 z-20 -ml-3.5 -mt-3.5" 
+                           style={{ left: `${eMap.lng}%`, top: `${eMap.lat}%` }}
+                           onClick={() => setSelectedObject({ id: 'exit', name: 'Exit', latitude: selectedMuseum.exit_lat, longitude: selectedMuseum.exit_lng, creator: 'Museum Facility' })}
+                         ><DoorOpen className="w-3.5 h-3.5" /></div>
+                         )
+                       })()}
+                    </div>
+                 </div>
+              ) : (
+                 <div className="w-full h-full bg-neutral-100 flex flex-col items-center justify-center">
+                   <RefreshCw className="w-8 h-8 text-[#005f73] mx-auto mb-4 animate-spin" />
+                   <p className="text-neutral-500 font-medium">Loading navigation...</p>
+                 </div>
+               )}
+               
+               {/* Floating Action Buttons (Right Stack) */}
+               <div className="absolute top-36 right-4 z-40 flex flex-col gap-3 pointer-events-auto">
+                 <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md border border-neutral-100 text-neutral-700 hover:bg-neutral-50 transition-colors">
+                   <Search className="w-4 h-4" />
+                 </button>
+                 <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md border border-neutral-100 text-neutral-700 hover:bg-neutral-50 transition-colors">
+                   <Volume2 className="w-4 h-4" />
+                 </button>
+                 <button onClick={startLocating} className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md border border-neutral-100 transition-colors ${isLocating ? 'bg-blue-500 text-white animate-pulse' : 'bg-white text-neutral-700 hover:bg-neutral-50'}`}>
+                   <Navigation className="w-4 h-4" />
+                 </button>
+               </div>
+               
+
+               {/* Center Location Button (Bottom Left Pill) */}
+               <div className={`absolute left-4 z-40 pointer-events-auto transition-all duration-300 ${destination ? 'bottom-[88px]' : 'bottom-6'}`}>
+                 <button onClick={() => setFollowMode(!followMode)} className={`px-4 py-3 bg-white rounded-full flex items-center gap-2 shadow-lg border text-sm font-bold transition-colors ${followMode ? 'border-blue-500 text-blue-600' : 'border-neutral-100 text-neutral-800 hover:bg-neutral-50'}`}>
+                   <Compass className={`w-5 h-5 ${followMode ? 'text-blue-500 animate-pulse' : 'text-neutral-400'}`} /> {followMode ? 'Following' : 'Re-centre'}
+                 </button>
+               </div>
+               
+               {/* Bottom Alert Banner */}
+               {isRecalculating ? (
+                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-amber-50 rounded-2xl shadow-xl flex items-center justify-center p-4 z-50 pointer-events-auto border border-amber-200">
+                     <RefreshCw className="w-5 h-5 text-amber-600 animate-spin mr-3" />
+                     <p className="text-sm font-bold text-amber-800">Recalculating route...</p>
+                 </div>
+               ) : destination ? (
+                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white rounded-2xl shadow-xl flex items-center justify-between p-3 z-50 pointer-events-auto border border-neutral-100">
+                     <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                             <ShieldAlert className="w-5 h-5 text-red-600" />
+                         </div>
+                         <p className="text-xs font-bold text-neutral-800 leading-tight">Heavier than usual traffic<br/><span className="text-neutral-500 font-medium text-[10px]">on this floor</span></p>
+                     </div>
+                     <button onClick={() => {
+                          setDestination(null);
+                     }} className="px-5 py-2.5 bg-gradient-to-r from-teal-500 to-[#005f73] text-white rounded-full shadow-sm font-bold text-xs hover:shadow-md transition-all">
+                        Dismiss
+                     </button>
+                 </div>
+               ) : null}
+            </div> {/* End Map Container */}
+
+           {/* Navigation Info Panel (Inline Bottom Sheet) */}
+           <div className="bg-white rounded-3xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] border border-neutral-100 p-6 mt-6 pb-safe">
+              {selectedObject ? (
+                <>
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1"><MapPin className="w-6 h-6 text-red-500 fill-red-100" /></div>
+                      <div>
+                        <h2 className="text-xl font-black text-neutral-900">{selectedObject.name}</h2>
+                        <p className="text-sm text-neutral-500">{selectedObject.creator || 'Museum Asset'}</p>
+                        <p className="text-xs text-neutral-400 mt-0.5">{selectedMuseum?.name}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right flex flex-col items-end">
+                       <figure className="text-neutral-700 mb-2 p-2 bg-neutral-50 rounded-full"><Compass className="w-5 h-5" /></figure>
+                       <p className="text-sm font-bold text-neutral-900">{(() => {
+                           const objMap = translateGpsToMap(selectedObject.latitude, selectedObject.longitude, selectedMuseum);
+                           const dist = calculateDistance(currentLocation?.lat, currentLocation?.lng, objMap.lat, objMap.lng) || 0;
+                           return <>{Math.ceil(dist / 80)} min <span className="text-neutral-300 mx-1">•</span> {Math.round(dist)} m</>;
+                       })()}</p>
+                       <p className="text-xs text-neutral-400 mt-0.5">Walking Time</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <button onClick={() => {
+                        const locMap = translateGpsToMap(selectedObject.latitude, selectedObject.longitude, selectedMuseum);
+                        setCurrentLocation(locMap);
+                        setSelectedObject(null);
+                        setDestination(null);
+                      }} className="flex-[0.8] py-3.5 border-2 border-neutral-200 rounded-xl font-bold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors shadow-sm">
+                      Set as My Location
+                    </button>
+                    <button onClick={() => {
+                        const locMap = translateGpsToMap(selectedObject.latitude, selectedObject.longitude, selectedMuseum);
+                        setDestination(locMap);
+                        setSelectedObject(null);
+                        setCurrentStepIndex(0);
+                      }} className="flex-[1.2] py-3.5 bg-[#005f73] text-white rounded-xl font-bold hover:bg-[#004757] transition-colors shadow-md flex items-center justify-center gap-2">
+                      Navigate Here
+                    </button>
+                  </div>
+                </>
+              ) : destination ? (
+                <div className="py-2 flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                        <MapPin className="w-5 h-5" />
+                     </div>
+                     <div>
+                       <h2 className="text-lg font-bold text-neutral-900 leading-tight">Navigating to destination</h2>
+                       <p className="text-xs text-neutral-500">Route active</p>
+                     </div>
+                   </div>
+                </div>
+              ) : (
+                <div className="py-6 text-center flex flex-col items-center">
+                   <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4 text-[#005f73]">
+                      <Compass className="w-8 h-8" />
+                   </div>
+                   <h2 className="text-xl font-black text-neutral-900 mb-2">Explore Mode</h2>
+                   <p className="text-sm text-neutral-500 mb-6 max-w-[250px]">Tap an artifact on the map to navigate to it, or scan a QR code to set your location.</p>
+                </div>
+              )}
+           </div>
+        </div>
+      )}
+
+      {/* Scanner Modal */}
+      {showScanner && <InlineQRScanner onScan={handleQRScan} onClose={() => setShowScanner(false)} />}
+
+      {/* Object Detail Sheet */}
+      <ObjectDetailSheet obj={selectedObject} onClose={() => setSelectedObject(null)} />
+      
+      {/* Turn-by-Turn Directions Sheet */}
+      {showDirectionsSheet && (
+        <DirectionsSheet routePoints={serverRoute} onClose={() => setShowDirectionsSheet(false)} />
+      )}
+    </div>
+  );
+};
+
+export default PhysicalMuseum;

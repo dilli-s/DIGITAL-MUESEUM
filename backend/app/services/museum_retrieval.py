@@ -31,7 +31,7 @@ def retrieve_museum_context(question):
     stories = Story.query.filter(
         db.or_(
             Story.title.ilike(search_term),
-            Story.content.ilike(search_term)
+            Story.summary.ilike(search_term)
         )
     ).limit(limit_per_category).all()
     

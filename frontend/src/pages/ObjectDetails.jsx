@@ -200,16 +200,27 @@ const ObjectDetails = () => {
         <ImageGallery images={object.images} />
       )}
       
-      {object.audio && (
-        <AudioPlayer audioSrc={object.audio} ref={audioRef} />
+      {(object.audio || object.audio_url) && (
+        <AudioPlayer audioSrc={object.audio || object.audio_url} ref={audioRef} />
       )}
       
-      {object.video && (
-        <VideoPlayer videoSrc={object.video} />
+      {(object.video || object.video_url) && (
+        <VideoPlayer videoSrc={object.video || object.video_url} objectImage={object.image} />
       )}
       
-      {object.model3d && (
-        <ModelViewer modelSrc={object.model3d} />
+      {(object.model3d || object.model_3d_url) && (
+        <ModelViewer modelSrc={object.model3d || object.model_3d_url} />
+      )}
+
+      {/* Media Generation Status */}
+      {object.media_status === 'generating' && (
+        <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-center gap-4">
+          <RefreshCw className="w-6 h-6 text-amber-600 animate-spin flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-amber-800">AI Media is Being Generated</p>
+            <p className="text-sm text-amber-600">Audio narration, 3D model, and video are currently being created by AI. Refresh in a minute to see them!</p>
+          </div>
+        </div>
       )}
 
       {museum && (

@@ -4,10 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import { ShieldAlert, Loader } from 'lucide-react';
 
 const AdminRoute = ({ children }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader className="w-8 h-8 animate-spin text-neutral-500" />

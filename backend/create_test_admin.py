@@ -15,5 +15,6 @@ with app.app_context():
         print("Created test_activity@example.com as an admin.")
     else:
         user.role = "admin"
+        user.set_password("password123")
         db.session.commit()
-        print("Updated test_activity@example.com to admin.")
+        print("Updated test_activity@example.com to admin and reset password.")

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getExhibitions } from '../../services/api';
 import { Calendar } from 'lucide-react';
+import { getMediaUrl } from '../../utils/media';
 
 const FeaturedExhibitions = () => {
   const [exhibitions, setExhibitions] = useState([]);
@@ -20,12 +21,15 @@ const FeaturedExhibitions = () => {
         <p className="mt-2 text-neutral-400">Discover temporary and special collections.</p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-4 md:gap-8 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {exhibitions.map((exhibition) => (
-          <div key={exhibition.id} className="group relative bg-neutral-800 rounded-xl overflow-hidden border border-neutral-700 hover:border-neutral-500 transition-colors">
+          <div key={exhibition.id} className="w-[85vw] md:w-auto shrink-0 snap-center group relative bg-neutral-800 rounded-xl overflow-hidden border border-neutral-700 hover:border-neutral-500 transition-colors">
             <div className="h-40 bg-neutral-700 relative overflow-hidden">
-              {/* Abstract visual placeholder */}
-              <div className="absolute inset-0 opacity-30 mix-blend-overlay bg-gradient-to-br from-neutral-400 to-neutral-800"></div>
+              {exhibition.image ? (
+                <img src={getMediaUrl(exhibition.image)} alt={exhibition.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              ) : (
+                <div className="absolute inset-0 opacity-30 mix-blend-overlay bg-gradient-to-br from-neutral-400 to-neutral-800"></div>
+              )}
             </div>
             <div className="p-6">
               {exhibition.period && (

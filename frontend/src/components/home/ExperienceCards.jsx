@@ -8,36 +8,36 @@ const ExperienceCards = () => {
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold tracking-tight text-neutral-900">Two Ways to Experience the Museum</h2>
       </div>
-      <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-        <div className="bg-white rounded-2xl p-8 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-6">
-            <Monitor className="w-8 h-8 text-neutral-700" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-8 max-w-5xl mx-auto">
+        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-8 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center">
+          <div className="w-10 h-10 sm:w-16 sm:h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-3 sm:mb-6">
+            <Monitor className="w-5 h-5 sm:w-8 sm:h-8 text-neutral-700" />
           </div>
-          <h3 className="text-2xl font-semibold mb-4 text-neutral-900">Virtual Museum</h3>
-          <p className="text-neutral-600 mb-8 flex-grow">
+          <h3 className="text-sm sm:text-2xl font-semibold mb-2 sm:mb-4 text-neutral-900">Virtual Museum</h3>
+          <p className="text-[11px] leading-relaxed sm:text-base text-neutral-600 mb-4 sm:mb-8 flex-grow">
             Explore museum collections from anywhere. Browse galleries, discover objects and experience digital exhibits online.
           </p>
           <Link 
             to="/museum/1" 
-            className="w-full sm:w-auto inline-flex justify-center rounded-md bg-neutral-900 px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800 transition-colors"
+            className="w-full inline-flex justify-center rounded-md bg-neutral-900 px-2 sm:px-6 py-2 sm:py-3 text-[10px] sm:text-sm font-semibold text-white hover:bg-neutral-800 transition-colors"
           >
-            EXPLORE VIRTUAL MUSEUM
+            EXPLORE VIRTUAL
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl p-8 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-6">
-            <Smartphone className="w-8 h-8 text-neutral-700" />
+        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-8 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow flex flex-col items-center text-center">
+          <div className="w-10 h-10 sm:w-16 sm:h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-3 sm:mb-6">
+            <Smartphone className="w-5 h-5 sm:w-8 sm:h-8 text-neutral-700" />
           </div>
-          <h3 className="text-2xl font-semibold mb-4 text-neutral-900">Physical Museum</h3>
-          <p className="text-neutral-600 mb-8 flex-grow">
+          <h3 className="text-sm sm:text-2xl font-semibold mb-2 sm:mb-4 text-neutral-900">Physical Museum</h3>
+          <p className="text-[11px] leading-relaxed sm:text-base text-neutral-600 mb-4 sm:mb-8 flex-grow">
             Enhance your museum visit with QR-based object discovery, digital information and museum navigation.
           </p>
           <Link 
             to="/physical" 
-            className="w-full sm:w-auto inline-flex justify-center rounded-md bg-neutral-900 px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800 transition-colors"
+            className="w-full inline-flex justify-center rounded-md bg-neutral-900 px-2 sm:px-6 py-2 sm:py-3 text-[10px] sm:text-sm font-semibold text-white hover:bg-neutral-800 transition-colors"
           >
-            EXPLORE PHYSICAL MUSEUM
+            EXPLORE PHYSICAL
           </Link>
         </div>
       </div>

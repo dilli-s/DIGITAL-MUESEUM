@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAdminExhibitions, createAdminExhibition, updateAdminExhibition, deleteAdminExhibition, getAdminMuseums } from '../../services/api';
+import { getAdminExhibitions, createAdminExhibition, updateAdminExhibition, deleteAdminExhibition, getAdminMuseums, uploadFile } from '../../services/api';
 import { Plus, Edit, Trash2, X, AlertTriangle } from 'lucide-react';
 
 const AdminExhibitions = () => {
@@ -13,8 +13,26 @@ const AdminExhibitions = () => {
   const [formData, setFormData] = useState({ title: '', description: '', museum_id: '', start_date: '', end_date: '', image_url: '' });
   const [formError, setFormError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const handleUpload = async (e, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    try {
+      const res = await uploadFile(file);
+      if (res.data && res.data.url) {
+        setFormData(prev => ({ ...prev, [field]: res.data.url }));
+      }
+    } catch (err) {
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -188,8 +206,20 @@ const AdminExhibitions = () => {
                 <textarea rows="3" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border"></textarea>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700">Image URL</label>
-                <input type="url" value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" />
+                <label className="block text-sm font-medium text-neutral-700">Image</label>
+                <div className="mt-1 flex items-center space-x-4">
+                  <input type="url" value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} className="block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border" placeholder="Image URL" />
+                  <span className="text-neutral-500 text-sm">OR</span>
+                  <label className="cursor-pointer bg-neutral-100 border border-neutral-300 hover:bg-neutral-200 text-neutral-700 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap">
+                    {isUploading ? 'Uploading...' : 'Upload File'}
+                    <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleUpload(e, 'image_url')} disabled={isUploading} />
+                  </label>
+                </div>
+                {formData.image_url && (
+                  <div className="mt-2">
+                    <img src={formData.image_url} alt="Preview" className="h-20 object-cover rounded border border-neutral-200" onError={(e) => e.target.style.display = 'none'} />
+                  </div>
+                )}
               </div>
               <div className="pt-4 flex justify-end space-x-3 border-t border-neutral-200 mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50">Cancel</button>

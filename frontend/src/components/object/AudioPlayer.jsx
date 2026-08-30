@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { Headphones } from 'lucide-react';
+import { getMediaUrl } from '../../utils/media';
 
 const AudioPlayer = forwardRef(({ audioSrc }, ref) => {
   if (!audioSrc) return null;
@@ -16,7 +17,7 @@ const AudioPlayer = forwardRef(({ audioSrc }, ref) => {
           ref={ref}
           controls 
           className="w-full"
-          src={audioSrc}
+          src={getMediaUrl(audioSrc)}
           preload="metadata"
         >
           Your browser does not support the audio element.

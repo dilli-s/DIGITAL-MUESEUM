@@ -53,6 +53,13 @@ def create_app(config_class=Config):
     # Initialize CORS safely with credentials support
     frontend_url_str = app.config.get('FRONTEND_URL', 'http://localhost:5173')
     allowed_origins = [url.strip() for url in frontend_url_str.split(',') if url.strip()]
+    
+    # Permanently allow common local development ports
+    local_ports = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175']
+    for port in local_ports:
+        if port not in allowed_origins:
+            allowed_origins.append(port)
+            
     CORS(app, origins=allowed_origins, supports_credentials=True)
 
     # Initialize extensions
@@ -97,6 +104,8 @@ def create_app(config_class=Config):
     from app.routes.admin.activities import admin_activities_bp
     from app.routes.admin.analytics import admin_analytics_bp
     from app.routes.admin.health import admin_health_bp
+    from app.routes.admin.users import admin_users_bp
+    from app.routes.admin.upload import admin_upload_bp
     
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(museum_bp, url_prefix='/api')
@@ -125,6 +134,15 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_activities_bp, url_prefix='/api/admin')
     app.register_blueprint(admin_analytics_bp, url_prefix='/api/admin')
     app.register_blueprint(admin_health_bp, url_prefix='/api/admin')
+    app.register_blueprint(admin_users_bp, url_prefix='/api/admin/users')
+    app.register_blueprint(admin_upload_bp, url_prefix='/api/admin')
+
+    # Serve uploaded files
+    @app.route('/uploads/<path:filename>')
+    def serve_uploads(filename):
+        import os
+        from flask import send_from_directory
+        return send_from_directory(os.path.join(os.getcwd(), 'uploads'), filename)
 
     # Import models so SQLAlchemy knows about them
     with app.app_context():

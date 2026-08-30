@@ -41,11 +41,15 @@ import AdminLearning from '../pages/admin/AdminLearning';
 import AdminStories from '../pages/admin/AdminStories';
 import AdminActivities from '../pages/admin/AdminActivities';
 import AdminAnalytics from '../pages/admin/AdminAnalytics';
+import AdminMapEditor from '../pages/admin/AdminMapEditor';
+import AdminUsers from '../pages/admin/AdminUsers';
 
 const AppRoutes = () => {
+  console.log('AppRoutes rendering');
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<Scan />} />
+      <Route path="/home" element={<Home />} />
       <Route path="/museums" element={<Museums />} />
       <Route path="/museums/:museumId" element={<MuseumDetails />} />
       <Route path="/museum/:museumId" element={<MuseumHome />} />
@@ -118,6 +122,11 @@ const AppRoutes = () => {
           <AdminLearning />
         </AdminRoute>
       } />
+      <Route path="/admin/map-editor" element={
+        <AdminRoute>
+          <AdminMapEditor />
+        </AdminRoute>
+      } />
       <Route path="/admin/stories" element={
         <AdminRoute>
           <AdminStories />
@@ -131,6 +140,11 @@ const AppRoutes = () => {
       <Route path="/admin/analytics" element={
         <AdminRoute>
           <AdminAnalytics />
+        </AdminRoute>
+      } />
+      <Route path="/admin/users" element={
+        <AdminRoute>
+          <AdminUsers />
         </AdminRoute>
       } />
       
