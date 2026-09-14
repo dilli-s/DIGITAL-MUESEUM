@@ -1,8 +1,10 @@
+from typing import Any
 from app.extensions import db
 from datetime import datetime, timezone
 from sqlalchemy import UniqueConstraint
+from app.models.base import BaseModel
 
-class ActivityProgress(db.Model):
+class ActivityProgress(BaseModel):
     __tablename__ = 'activity_progress'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -25,7 +27,7 @@ class ActivityProgress(db.Model):
     user = db.relationship('User', backref=db.backref('activity_progress', cascade='all, delete-orphan'))
     activity = db.relationship('Activity', backref=db.backref('progress_records', cascade='all, delete-orphan'))
 
-    def serialize(self):
+    def serialize(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "user_id": self.user_id,

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Example Museum First Floor</title>
+  <desc id="desc">Seven-room floor plan with stair landing, kitchen, two bedrooms, hall, and two bathrooms.</desc>
+  <rect width="1400" height="900" fill="#f7f4ed"/>
+  <g fill="#fffdf8" stroke="#555" stroke-width="10" stroke-linejoin="round">
+    <rect x="140" y="90" width="252" height="702"/>
+    <rect x="392" y="90" width="280" height="288"/>
+    <rect x="672" y="90" width="308" height="288"/>
+    <rect x="980" y="90" width="330" height="288"/>
+    <rect x="392" y="378" width="588" height="414"/>
+    <rect x="980" y="378" width="175" height="414"/>
+    <rect x="1155" y="378" width="155" height="414"/>
+  </g>
+  <g fill="#e7eef7" stroke="#345" stroke-width="5" opacity=".9">
+    <rect x="165" y="150" width="90" height="340"/>
+    <path d="M165 150h90M165 184h90M165 218h90M165 252h90M165 286h90M165 320h90M165 354h90M165 388h90M165 422h90M165 456h90"/>
+  </g>
+  <g fill="#20252d" font-family="Georgia, serif" text-anchor="middle">
+    <text x="266" y="570" font-size="28">STAIR LANDING</text>
+    <text x="532" y="235" font-size="30">KITCHEN</text>
+    <text x="826" y="235" font-size="30">BEDROOM 2</text>
+    <text x="1145" y="235" font-size="30">BEDROOM 1</text>
+    <text x="686" y="590" font-size="32">MAIN HALL</text>
+    <text x="1067" y="590" font-size="24">BATHROOM 1</text>
+    <text x="1232" y="590" font-size="24">BATHROOM 2</text>
+  </g>
+  <g fill="#b33a2f" font-family="Arial, sans-serif" font-size="18" text-anchor="middle">
+    <text x="392" y="470">door</text>
+    <text x="532" y="378">door</text>
+    <text x="826" y="378">door</text>
+    <text x="1145" y="378">door</text>
+    <text x="980" y="500">door</text>
+    <text x="1155" y="500">door</text>
+  </g>
+  <g stroke="#b33a2f" stroke-width="8">
+    <path d="M370 540h44"/><path d="M510 360v36"/><path d="M804 360v36"/>
+    <path d="M1123 360v36"/><path d="M960 490h40"/><path d="M1135 490h40"/>
+  </g>
+  <text x="700" y="850" fill="#555" font-family="Arial, sans-serif" font-size="20" text-anchor="middle">Example Museum | First Floor | Not to scale</text>
+</svg>

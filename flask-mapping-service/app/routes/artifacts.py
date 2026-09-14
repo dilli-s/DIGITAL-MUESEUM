@@ -9,6 +9,44 @@ def add_artifact():
     data = request.json
     try:
         art = create_artifact(data)
+
+        # Ensure the artifact is also synchronized in objects table if not already present
+        try:
+            from app.utils.db import execute_query
+            name = (data.get('name') or '').strip()
+            if name:
+                existing_obj = execute_query(
+                    "SELECT id FROM objects WHERE name ILIKE %s LIMIT 1",
+                    (name,),
+                    fetchone=True
+                )
+                if not existing_obj:
+                    museum_id = None
+                    fp_id = data.get('floor_plan_id')
+                    if fp_id:
+                        fp_row = execute_query("SELECT museum_id FROM floor_plans WHERE id = %s::uuid", (fp_id,), fetchone=True)
+                        if fp_row and fp_row[0]:
+                            museum_id = fp_row[0]
+                    if not museum_id:
+                        m_row = execute_query("SELECT id FROM museums ORDER BY id LIMIT 1", fetchone=True)
+                        if m_row:
+                            museum_id = m_row[0]
+
+                    if museum_id:
+                        lat = data.get('latitude')
+                        lng = data.get('longitude')
+                        execute_query(
+                            """
+                            INSERT INTO objects (name, description, museum_id, latitude, longitude, category)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                            """,
+                            (name, data.get('description'), museum_id, lat, lng, 'Exhibit'),
+                            commit=True
+                        )
+                        logging.info(f"Synchronized artifact '{name}' to objects table for museum {museum_id}")
+        except Exception as sync_err:
+            logging.warning(f"Could not auto-sync artifact to objects table: {sync_err}")
+
         return jsonify({"data": art}), 201
     except Exception as e:
         logging.error(f"Error adding artifact: {e}")
@@ -86,8 +124,8 @@ def get_nearby_artifacts():
         # Simplified nearby logic using map_x/map_y approx. In production, 
         # convert normalized distances to meters using a known scale.
         # Here we just fetch all for the floor and sort by euclidean * scale.
-        from app.models.floor_plan import get_floor_plan
-        floor = get_floor_plan(floor_plan_id)
+        from app.models.floor_plan import get_floor_plan_by_id
+        floor = get_floor_plan_by_id(floor_plan_id)
         scale = floor.get('scale_meters_per_px', 1) if floor else 1 
         # Assuming floor_plan width is roughly 100 meters for example, or actual scale.
         # This requires robust scale logic. We will just use the haversine on lat/lng if available.
@@ -95,15 +133,22 @@ def get_nearby_artifacts():
         
         from app.utils.geo import haversine_distance
         results = []
+        lat_arg = request.args.get('lat')
+        lng_arg = request.args.get('lng')
+        user_lat = float(lat_arg) if lat_arg is not None else None
+        user_lng = float(lng_arg) if lng_arg is not None else None
+
         for a in arts:
             # use lat/lng if both are available, else fallback
-            if a.get('latitude') and a.get('longitude') and request.args.get('lat') and request.args.get('lng'):
-                dist = haversine_distance(float(request.args.get('lat')), float(request.args.get('lng')), a['latitude'], a['longitude'])
+            if a.get('latitude') is not None and a.get('longitude') is not None and user_lat is not None and user_lng is not None:
+                dist = haversine_distance(user_lat, user_lng, float(a['latitude']), float(a['longitude']))
             else:
                 import math
                 # heuristic fallback
-                dx = (a['map_x'] - x) * 100 # assume 100m map width roughly
-                dy = (a['map_y'] - y) * 100
+                art_x = float(a.get('map_x') or 0.0)
+                art_y = float(a.get('map_y') or 0.0)
+                dx = (art_x - x) * 100 # assume 100m map width roughly
+                dy = (art_y - y) * 100
                 dist = math.sqrt(dx*dx + dy*dy)
                 
             if dist <= radius_m:

@@ -4,6 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
+      }
+    }
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -11,8 +19,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Vanalok Museum Guide',
-        short_name: 'Vanalok',
+        name: 'Digital Museum Guide',
+        short_name: 'Digital Museum',
         description: 'Interactive museum guide and navigator.',
         theme_color: '#0a0a0a',
         background_color: '#fafafa',
@@ -36,20 +44,6 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp}'],
         maximumFileSizeToCacheInBytes: 5000000,
         runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/vanalok\.onrender\.com\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|webp)$/,
             handler: 'CacheFirst',

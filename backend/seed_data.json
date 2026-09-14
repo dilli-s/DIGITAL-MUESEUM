@@ -89,8 +89,9 @@
     {
       "id": 1,
       "museumId": 1,
-      "name": "Dinosaur Era",
-      "description": "Explore the fossils and bones of prehistoric giants.",
+      "name": "Stair Landing",
+      "description": "Main stair landing and first-floor entrance.",
+      "floor": "1",
       "objectCount": 450,
       "period": "Prehistoric",
       "theme": "Science"
@@ -98,8 +99,9 @@
     {
       "id": 2,
       "museumId": 1,
-      "name": "Human Evolution",
-      "description": "Tracing the origins and development of early humans.",
+      "name": "Kitchen",
+      "description": "Kitchen room on the first-floor plan.",
+      "floor": "1",
       "objectCount": 320,
       "period": "Prehistoric",
       "theme": "Science"
@@ -166,6 +168,46 @@
       "objectCount": 220,
       "period": "Early Modern",
       "theme": "Culture"
+    },
+    {
+      "id": 10,
+      "museumId": 1,
+      "name": "Bedroom 1",
+      "description": "First-floor bedroom 1.",
+      "floor": "1",
+      "theme": "Rooms"
+    },
+    {
+      "id": 11,
+      "museumId": 1,
+      "name": "Bedroom 2",
+      "description": "First-floor bedroom 2.",
+      "floor": "1",
+      "theme": "Rooms"
+    },
+    {
+      "id": 12,
+      "museumId": 1,
+      "name": "Main Hall",
+      "description": "Central first-floor hall.",
+      "floor": "1",
+      "theme": "Rooms"
+    },
+    {
+      "id": 13,
+      "museumId": 1,
+      "name": "Bathroom 1",
+      "description": "First-floor bathroom 1.",
+      "floor": "1",
+      "theme": "Rooms"
+    },
+    {
+      "id": 14,
+      "museumId": 1,
+      "name": "Bathroom 2",
+      "description": "First-floor bathroom 2.",
+      "floor": "1",
+      "theme": "Rooms"
     }
   ],
   "collections": [
@@ -492,6 +534,98 @@
       ],
       "themeIds": [
         3
+      ]
+    }
+  ],
+  "stories": [
+    {
+      "id": 1,
+      "objectId": 1,
+      "title": "The Predator That Rewrote the Food Chain",
+      "summary": "How the T-Rex became one of the most influential predators of the Late Cretaceous.",
+      "image": "/images/trex-story.jpg",
+      "content": [
+        {
+          "heading": "A changing world",
+          "text": "The T-Rex lived in a warm, dynamic ecosystem where changing coastlines reshaped habitats and hunting grounds."
+        },
+        {
+          "heading": "Built to dominate",
+          "text": "Its skull, teeth, and neck muscles formed an exceptionally powerful feeding system for its time."
+        }
+      ],
+      "duration": "6 min"
+    },
+    {
+      "id": 2,
+      "objectId": 2,
+      "title": "Reading a Moon Rock",
+      "summary": "What a small lunar sample can reveal about the history of the Moon.",
+      "image": "/images/moon-rock-story.jpg",
+      "content": [
+        {
+          "heading": "A geological time capsule",
+          "text": "Lunar rock preserves evidence of impacts, volcanic activity, and the early formation of the Earth-Moon system."
+        }
+      ],
+      "duration": "4 min"
+    },
+    {
+      "id": 3,
+      "objectId": 6,
+      "title": "The Secret of the Mona Lisa Smile",
+      "summary": "A closer look at the layered technique behind Leonardo's most famous expression.",
+      "image": "/images/monalisa-story.jpg",
+      "content": [
+        {
+          "heading": "Sfumato in practice",
+          "text": "Leonardo softened transitions between light and shadow so the expression seems to change as the viewer moves."
+        }
+      ],
+      "duration": "7 min"
+    }
+  ],
+  "activities": [
+    {
+      "id": 1,
+      "objectId": 1,
+      "title": "Build a Dinosaur Food Web",
+      "description": "Place Late Cretaceous animals into a simple food web.",
+      "type": "sorting",
+      "difficulty": "Beginner",
+      "questions": [
+        {
+          "prompt": "Which animal is the apex predator?",
+          "answer": "T-Rex Skeleton"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "objectId": 3,
+      "title": "Walk Like an Early Human",
+      "description": "Explore the skeletal clues that reveal Lucy's bipedal movement.",
+      "type": "quiz",
+      "difficulty": "Beginner",
+      "questions": [
+        {
+          "prompt": "What does bipedal mean?",
+          "answer": "Walking on two legs"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "objectId": 6,
+      "title": "Find the Sfumato",
+      "description": "Identify the soft transitions between light and shadow in the portrait.",
+      "type": "observation",
+      "difficulty": "Intermediate",
+      "questions": [
+        {
+          "prompt": "Which technique softens hard outlines?",
+          "answer": "Sfumato"
+        }
       ]
     }
   ],

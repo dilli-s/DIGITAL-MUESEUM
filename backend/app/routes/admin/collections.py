@@ -59,8 +59,7 @@ def create_collection():
             name=data['name'],
             description=data.get('description'),
             museum_id=data['museum_id'],
-            gallery_id=data.get('gallery_id'),
-            image_url=data.get('image_url')
+            image=data.get('image_url')
         )
         db.session.add(collection)
         db.session.commit()
@@ -91,14 +90,12 @@ def update_collection(collection_id):
             if not gallery:
                 return jsonify({"error": {"code": "NOT_FOUND", "message": "Gallery does not exist."}}), 404
                 
-        allowed_fields = ['name', 'description', 'museum_id', 'gallery_id', 'image_url']
+        allowed_fields = ['name', 'description', 'museum_id']
         for field in allowed_fields:
             if field in data:
-                # Handle empty strings for optional int fields
-                if field == 'gallery_id' and data[field] == '':
-                    setattr(collection, field, None)
-                else:
-                    setattr(collection, field, data[field])
+                setattr(collection, field, data[field])
+        if 'image_url' in data:
+            collection.image = data['image_url']
                 
         db.session.commit()
         return jsonify({

@@ -1,6 +1,6 @@
 # API Documentation
 
-The REST API serves as the bridge between the React frontend and Neon database. 
+The REST API serves as the bridge between the React frontend and the PostgreSQL database.
 All requests must be prefixed with `/api`.
 Authentication relies on secure cookies; authenticated routes require an active session.
 

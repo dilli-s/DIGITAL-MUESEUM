@@ -51,10 +51,17 @@ export const mapExhibitionFromApi = (exhibition) => {
 export const mapObjectFromApi = (object) => {
   return {
     ...object,
+    title: object.title || object.name,
     museumId: object.museum_id,
     galleryId: object.gallery_id,
     collectionId: object.collection_id,
     objectCode: object.object_code,
+    image_url: object.image_url || object.image,
+    glb_model_url: object.glb_model_url || object.model_3d_url,
+    local_name: object.local_name,
+    common_name: object.common_name,
+    scientific_name: object.scientific_name,
+    interestingFacts: object.interestingFacts || object.facts || [],
     longDescription: object.description || ''
   };
 };

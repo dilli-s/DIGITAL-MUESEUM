@@ -1,9 +1,11 @@
+from typing import Any
 from app.extensions import db
 from datetime import datetime, timezone
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from app.models.base import BaseModel
 
-class User(UserMixin, db.Model):
+class User(UserMixin, BaseModel):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -20,7 +22,7 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    def serialize(self):
+    def serialize(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,

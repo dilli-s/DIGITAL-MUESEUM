@@ -1,16 +1,17 @@
 import os
-from google import genai
-from google.genai import types
 
 class AIProvider:
     def __init__(self):
         self.api_key = os.environ.get("AI_API_KEY") or os.environ.get("GEMINI_API_KEY")
         self.model_name = os.environ.get("AI_MODEL", "gemini-3.6-flash")
-        
-        if self.api_key:
-            self.client = genai.Client(api_key=self.api_key)
-        else:
-            self.client = None
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None and self.api_key:
+            from google import genai
+            self._client = genai.Client(api_key=self.api_key)
+        return self._client
             
     def generate_response(self, system_instruction, context_text, user_question):
         if not self.client:
@@ -27,6 +28,7 @@ USER QUESTION:
 {user_question}
 """
         try:
+            from google.genai import types
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=prompt,

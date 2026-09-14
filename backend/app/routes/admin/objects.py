@@ -17,9 +17,15 @@ def get_objects():
         query = MuseumObject.query
         
         if museum_id:
-            query = query.filter_by(museum_id=museum_id)
+            try:
+                query = query.filter_by(museum_id=int(museum_id))
+            except (ValueError, TypeError):
+                query = query.filter_by(museum_id=museum_id)
         if gallery_id:
-            query = query.filter_by(gallery_id=gallery_id)
+            try:
+                query = query.filter_by(gallery_id=int(gallery_id))
+            except (ValueError, TypeError):
+                query = query.filter_by(gallery_id=gallery_id)
         if search:
             query = query.filter(MuseumObject.name.ilike(f'%{search}%'))
             
@@ -57,9 +63,37 @@ def create_object():
         if not museum:
             return jsonify({"error": {"code": "NOT_FOUND", "message": "Museum does not exist."}}), 404
             
+        lat_raw = data.get('latitude')
+        lng_raw = data.get('longitude')
+        lat = None
+        lng = None
+        
+        if lat_raw is not None and lng_raw is not None and str(lat_raw).strip() != '' and str(lng_raw).strip() != '':
+            try:
+                lat = float(lat_raw)
+                lng = float(lng_raw)
+            except (ValueError, TypeError):
+                return jsonify({"error": {"code": "INVALID_LOCATION", "message": "Latitude and Longitude must be valid numbers."}}), 400
+                
+            m_lat = float(museum.latitude) if museum and museum.latitude is not None else 13.073226
+            m_lng = float(museum.longitude) if museum and museum.longitude is not None else 80.257045
+            
+            if abs(lat - m_lat) > 0.05 or abs(lng - m_lng) > 0.05 or lat == 0 or lng == 0:
+                return jsonify({"error": {"code": "BOUNDING_BOX_ERROR", "message": f"Coordinates ({lat}, {lng}) fall outside the physical bounding box for {museum.name}."}}), 400
+        else:
+            # Floor-plan placement does not require georeferencing.
+            lat = None
+            lng = None
+            
         obj = MuseumObject(
             name=name,
+            local_name=data.get('local_name'),
+            common_name=data.get('common_name'),
+            scientific_name=data.get('scientific_name'),
             description=data.get('description'),
+            significance=data.get('significance'),
+            facts=data.get('facts') or [],
+            images=data.get('images') or [],
             museum_id=data['museum_id'],
             gallery_id=data.get('gallery_id') or None,
             collection_id=data.get('collection_id') or None,
@@ -67,8 +101,8 @@ def create_object():
             period=data.get('period'),
             origin=data.get('origin'),
             category=data.get('category'),
-            latitude=data.get('latitude') or None,
-            longitude=data.get('longitude') or None,
+            latitude=lat,
+            longitude=lng,
         )
         db.session.add(obj)
         db.session.commit()
@@ -95,9 +129,38 @@ def update_object(object_id):
             
         data = request.json
         
+        # Validate latitude/longitude if being updated or if mandatory check is requested
+        if 'latitude' in data or 'longitude' in data:
+            lat_raw = data.get('latitude')
+            lng_raw = data.get('longitude')
+            if lat_raw is None or lng_raw is None or str(lat_raw).strip() == '' or str(lng_raw).strip() == '':
+                return jsonify({"error": {"code": "INVALID_LOCATION", "message": "Coordinates (latitude and longitude) are mandatory. Exhibits cannot have empty location coordinates."}}), 400
+            try:
+                lat = float(lat_raw)
+                lng = float(lng_raw)
+            except (ValueError, TypeError):
+                return jsonify({"error": {"code": "INVALID_LOCATION", "message": "Latitude and Longitude must be valid numbers."}}), 400
+                
+            museum_id = data.get('museum_id') or obj.museum_id
+            museum = Museum.query.get(museum_id)
+            m_lat = float(museum.latitude) if museum and museum.latitude is not None else 13.073226
+            m_lng = float(museum.longitude) if museum and museum.longitude is not None else 80.257045
+            
+            if abs(lat - m_lat) > 0.005 or abs(lng - m_lng) > 0.005 or lat == 0 or lng == 0:
+                return jsonify({"error": {"code": "BOUNDING_BOX_ERROR", "message": f"Coordinates ({lat}, {lng}) fall outside the physical bounding box for {museum.name if museum else 'the museum'}."}}), 400
+                
+            obj.latitude = lat
+            obj.longitude = lng
+
         if 'name' in data: obj.name = data['name']
         if 'title' in data: obj.name = data['title']  # frontend compat
+        if 'local_name' in data: obj.local_name = data['local_name']
+        if 'common_name' in data: obj.common_name = data['common_name']
+        if 'scientific_name' in data: obj.scientific_name = data['scientific_name']
         if 'description' in data: obj.description = data['description']
+        if 'significance' in data: obj.significance = data['significance']
+        if 'facts' in data: obj.facts = data['facts'] or []
+        if 'images' in data: obj.images = data['images'] or []
         if 'museum_id' in data: obj.museum_id = data['museum_id']
         if 'gallery_id' in data: obj.gallery_id = data['gallery_id'] or None
         if 'collection_id' in data: obj.collection_id = data['collection_id'] or None
@@ -106,8 +169,6 @@ def update_object(object_id):
         if 'period' in data: obj.period = data['period']
         if 'origin' in data: obj.origin = data['origin']
         if 'category' in data: obj.category = data['category']
-        if 'latitude' in data: obj.latitude = data['latitude'] or None
-        if 'longitude' in data: obj.longitude = data['longitude'] or None
                 
         db.session.commit()
         

@@ -1,12 +1,12 @@
 # Database Architecture
 
 ## Technology Stack
-- **Database Engine**: Neon PostgreSQL (Serverless)
+- **Database Engine**: PostgreSQL
 - **ORM**: SQLAlchemy
 - **Migrations**: Alembic / Flask-Migrate
 
 ## Connection Flow
-`Flask (Gunicorn)` -> `psycopg3` -> `SQLAlchemy Connection Pool` -> `Neon DB`
+`Flask (Gunicorn)` -> `psycopg3` -> `SQLAlchemy Connection Pool` -> `PostgreSQL`
 *Note*: The React frontend never communicates directly with the database.
 
 ## Schema Overview
@@ -21,7 +21,7 @@
 Migrations are managed in `backend/migrations/`.
 - **Generate**: `flask db migrate -m "message"`
 - **Apply**: `flask db upgrade`
-- **Revert**: `flask db downgrade` (Proceed with caution in production. Use Neon's branching instead for serious reverts).
+- **Revert**: `flask db downgrade` (Proceed with caution in production. Use a database backup for serious reverts).
 
 ## Performance Considerations
 - All foreign keys are inherently indexed.

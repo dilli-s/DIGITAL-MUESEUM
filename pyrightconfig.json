@@ -1,0 +1,20 @@
+{
+  "executionEnvironments": [
+    {
+      "root": "flask-mapping-service",
+      "extraPaths": [
+        "flask-mapping-service",
+        "flask-mapping-service/app",
+        "flask-mapping-service/venv/lib/python3.12/site-packages"
+      ]
+    },
+    {
+      "root": "backend",
+      "extraPaths": [
+        "backend",
+        "backend/app",
+        "backend/venv/lib/python3.12/site-packages"
+      ]
+    }
+  ]
+}

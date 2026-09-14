@@ -1,8 +1,10 @@
+from typing import Any
 from app.extensions import db
 from datetime import datetime, timezone
 from sqlalchemy import UniqueConstraint
+from app.models.base import BaseModel
 
-class Bookmark(db.Model):
+class Bookmark(BaseModel):
     __tablename__ = 'bookmarks'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -18,7 +20,7 @@ class Bookmark(db.Model):
     # Relationship to user
     user = db.relationship('User', backref=db.backref('bookmarks', cascade='all, delete-orphan'))
 
-    def serialize(self):
+    def serialize(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "user_id": self.user_id,

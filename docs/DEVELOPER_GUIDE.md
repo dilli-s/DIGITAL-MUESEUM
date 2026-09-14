@@ -6,7 +6,7 @@ Welcome to the Digital Museum codebase.
 - Node.js (v20+)
 - Python (v3.12)
 - Git
-- Neon PostgreSQL Account
+- PostgreSQL database
 
 ## 2. Environment Setup
 Populate both environment files based on the `.example` variants.
@@ -40,4 +40,4 @@ Backend tests leverage `pytest`. Run `pytest` within the activated `backend` vir
 - Ensure no `.env` files are pushed to GitHub.
 
 ## 6. Deployment
-Refer to `docs/DEPLOYMENT.md` for steps on promoting local code to Vercel and Render.
+Refer to `docs/DEPLOYMENT.md` for steps on promoting local code to your hosting environments.

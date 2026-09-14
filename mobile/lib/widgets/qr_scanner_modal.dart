@@ -42,7 +42,7 @@ class _QRScannerModalState extends State<QRScannerModal> {
                   icon: const Icon(LucideIcons.x, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.1),
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
               ],

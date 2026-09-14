@@ -2,7 +2,7 @@
 
 - [x] Frontend (Built and optimized)
 - [x] Backend (Production WSGI implemented)
-- [x] Database (Migrations clean, Neon connected)
+- [x] Database (Migrations clean, PostgreSQL connected)
 - [x] Authentication (Cookies secure)
 - [x] Authorization (RBAC verified)
 - [x] Admin (CRUD flow tested)
@@ -18,7 +18,7 @@
 - [x] Accessibility (Semantic HTML verified)
 - [x] Responsive (Tailwind flex/grid confirmed on mobile)
 - [x] CI/CD (GitHub actions pass build & pytest)
-- [x] Deployment (Vercel + Flask Hosting verified)
-- [x] Backup (Neon PITR validated)
+- [x] Deployment (Frontend and Flask hosting verified)
+- [x] Backup and recovery validated
 - [x] Recovery (Simulated safely)
 - [x] Documentation (Comprehensively generated)

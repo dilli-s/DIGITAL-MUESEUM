@@ -1,7 +1,8 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.models.base import BaseModel
 
-class Exhibition(db.Model):
+class Exhibition(BaseModel):
     __tablename__ = 'exhibitions'
 
     id = db.Column(db.Integer, primary_key=True)

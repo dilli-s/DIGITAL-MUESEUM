@@ -16,9 +16,9 @@ The initial release of the Digital Museum Platform.
 - Enabled Production configuration (Gunicorn, `DEBUG=0`).
 
 ## Deployment
-- Frontend static distribution via Vercel.
+- Frontend static distribution via the selected hosting platform.
 - Dynamic REST operations distributed via cloud Python instances.
-- Fully serverless resilient database via Neon PostgreSQL.
+- PostgreSQL database with migration and backup support.
 
 ## Known Limitations
 - Vector similarity search is not yet natively supported in the AI prompts.

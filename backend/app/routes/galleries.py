@@ -10,7 +10,8 @@ def serialize_gallery(g):
         "museum_id": g.museum_id,
         "name": g.name,
         "description": g.description,
-        "image": g.image
+        "image": g.image,
+        "boundary_polygon": getattr(g, 'boundary_polygon', None)
     }
 
 @gallery_bp.route('/galleries', methods=['GET'])

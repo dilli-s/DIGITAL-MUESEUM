@@ -1,13 +1,13 @@
 # Operations Checklist
 
 ## Daily Checks
-- [ ] Check Vercel deployment status (no failed builds).
+- [ ] Check frontend deployment status (no failed builds).
 - [ ] Ping the public health endpoint: `GET /api/health`.
 - [ ] Verify Admin Analytics dashboard loads without database errors.
 
 ## Weekly Checks
 - [ ] Review backend error logs for repeated 500s or persistent AI API timeouts.
-- [ ] Verify Neon dashboard metrics (Connections and Compute usage within limits).
+- [ ] Verify PostgreSQL metrics (connections and resource usage within limits).
 - [ ] Test the frontend Admin CMS by updating a test object and confirming the change is reflected publicly.
 
 ## Pre-Deployment Checks

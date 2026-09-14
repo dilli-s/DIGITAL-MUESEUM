@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.vanalok.mobile",
+        "paths": ["/m/*", "/museum/*", "/museums/*"]
+      }
+    ]
+  }
+}

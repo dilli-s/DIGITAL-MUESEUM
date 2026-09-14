@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 
 const ImageGallery = ({ images }) => {
-  if (!images || images.length === 0) return null;
-
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  if (!images || images.length === 0) return null;
 
   const handlePrev = () => {
     setCurrentIndex(prev => Math.max(0, prev - 1));

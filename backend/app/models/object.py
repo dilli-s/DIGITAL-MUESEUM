@@ -1,5 +1,6 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.models.base import BaseModel
 
 # Association table for many-to-many relationship
 exhibition_objects = db.Table('exhibition_objects',
@@ -7,7 +8,7 @@ exhibition_objects = db.Table('exhibition_objects',
     db.Column('object_id', db.Integer, db.ForeignKey('objects.id'), primary_key=True)
 )
 
-class MuseumObject(db.Model):
+class MuseumObject(BaseModel):
     __tablename__ = 'objects'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -16,7 +17,13 @@ class MuseumObject(db.Model):
     collection_id = db.Column(db.Integer, db.ForeignKey('collections.id'), nullable=True)
     
     name = db.Column(db.String(255), nullable=False)
+    local_name = db.Column(db.String(255), nullable=True)
+    common_name = db.Column(db.String(255), nullable=True)
+    scientific_name = db.Column(db.String(255), nullable=True)
     description = db.Column(db.Text, nullable=True)
+    significance = db.Column(db.Text, nullable=True)
+    facts = db.Column(db.JSON, nullable=True)
+    images = db.Column(db.JSON, nullable=True)
     image = db.Column(db.Text, nullable=True)
     object_code = db.Column(db.String(100), unique=True, nullable=True)
     
@@ -46,3 +53,4 @@ class MuseumObject(db.Model):
     learning_resources = db.relationship('LearningResource', back_populates='object', cascade='all, delete-orphan')
     stories = db.relationship('Story', back_populates='object', cascade='all, delete-orphan')
     activities = db.relationship('Activity', back_populates='object', cascade='all, delete-orphan')
+

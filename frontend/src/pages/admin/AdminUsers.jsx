@@ -56,7 +56,7 @@ const AdminUsers = () => {
       await updateAdminUser(user.id, { role: newRole });
       fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to update role.');
+      console.log(err.response?.data?.error?.message || 'Failed to update role.');
     }
   };
 
@@ -66,7 +66,7 @@ const AdminUsers = () => {
       setDeleteConfirm(null);
       fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to delete user.');
+      console.log(err.response?.data?.error?.message || 'Failed to delete user.');
       setDeleteConfirm(null);
     }
   };

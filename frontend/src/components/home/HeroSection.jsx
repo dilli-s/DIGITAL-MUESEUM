@@ -76,7 +76,7 @@ const HeroSection = ({ onLocationDetect, onSearch }) => {
         </h1>
 
         <p className="text-neutral-400 text-sm sm:text-base mb-6 sm:mb-10 leading-relaxed">
-          A next-generation platform blending physical and virtual museum exploration. Discover nearby exhibitions, interact with AI-generated 3D artifacts, and listen to immersive multi-lingual audio narrations.
+          A next-generation platform for virtual museum exploration. Discover nearby exhibitions, interact with AI-generated 3D artifacts, and listen to immersive multi-lingual audio narrations.
         </p>
 
         {/* Search form */}

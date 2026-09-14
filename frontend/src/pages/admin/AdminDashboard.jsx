@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAdminDashboard } from '../../services/api';
-import { RefreshCw, Building2, Image as ImageIcon, BookOpen, Layers, Target, Activity as ActivityIcon, Users, FileText, Compass, BarChart, ShieldAlert, Map } from 'lucide-react';
+import { RefreshCw, Building2, Image as ImageIcon, BookOpen, Layers, Target, Activity as ActivityIcon, Users, FileText, Compass, BarChart, ShieldAlert, Map, Crosshair } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -32,7 +32,8 @@ const AdminDashboard = () => {
     { label: 'Exhibitions', count: stats.exhibitions, icon: Compass, link: '/admin/exhibitions', color: 'from-emerald-500 to-teal-400' },
     { label: 'Objects', count: stats.objects, icon: Target, link: '/admin/objects', color: 'from-rose-500 to-red-500' },
     { label: 'Learning', count: stats.learning, icon: BookOpen, link: '/admin/learning', color: 'from-indigo-500 to-blue-500' },
-    { label: 'Map Editor', count: 'Map', icon: Map, link: '/admin/map-editor', color: 'from-emerald-600 to-green-500' },
+    { label: 'Coordinates', count: 'Pin', icon: Compass, link: '/admin/coordinates', color: 'from-teal-600 to-cyan-500' },
+    { label: 'GPS Dashboard', count: 'Live', icon: Crosshair, link: '/admin/gps-dashboard', color: 'from-blue-600 to-indigo-500' },
     { label: 'Stories', count: stats.stories, icon: FileText, link: '/admin/stories', color: 'from-fuchsia-500 to-purple-500' },
     { label: 'Activities', count: stats.activities, icon: ActivityIcon, link: '/admin/activities', color: 'from-sky-500 to-cyan-300' },
     { label: 'Users', count: stats.users, icon: Users, link: '/admin/users', color: 'from-slate-500 to-slate-400' },

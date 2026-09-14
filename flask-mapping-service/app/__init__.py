@@ -25,6 +25,8 @@ def create_app(config_class=Config):
     from app.routes.artifacts import artifacts_bp
     from app.routes.qr import qr_bp
     from app.routes.navigation import navigation_bp
+    from app.routes.rooms import rooms_bp
+    from app.routes.fingerprints import fingerprints_bp
     
     app.register_blueprint(health_bp)
     app.register_blueprint(map_bp, url_prefix='/api')
@@ -32,6 +34,13 @@ def create_app(config_class=Config):
     app.register_blueprint(artifacts_bp, url_prefix='/api')
     app.register_blueprint(qr_bp, url_prefix='/api')
     app.register_blueprint(navigation_bp, url_prefix='/api')
+    app.register_blueprint(rooms_bp, url_prefix='/api')
+    app.register_blueprint(fingerprints_bp, name='fingerprints_root')
+    app.register_blueprint(fingerprints_bp, url_prefix='/api', name='fingerprints_api')
+    
+    # Root alias for /route/full-room/<room_id>
+    from app.routes.map import route_full_room
+    app.add_url_rule('/route/full-room/<room_id>', view_func=route_full_room, methods=['POST'])
     
     # Generic error handler
     @app.errorhandler(500)

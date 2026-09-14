@@ -1,4 +1,5 @@
 # This file ensures app.models can be imported properly
+from .base import BaseModel
 from .museum import Museum
 from .gallery import Gallery
 from .collection import Collection

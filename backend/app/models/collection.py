@@ -1,7 +1,8 @@
 from app.extensions import db
 from datetime import datetime, timezone
+from app.models.base import BaseModel
 
-class Collection(db.Model):
+class Collection(BaseModel):
     __tablename__ = 'collections'
 
     id = db.Column(db.Integer, primary_key=True)

@@ -4,11 +4,11 @@
 **Environment**: Local / Simulated Production
 
 ## Recovery Source
-- **Database**: Simulated Neon Point-in-Time Recovery via branching.
+- **Database**: Simulated point-in-time recovery using a database backup.
 - **Application**: GitHub Actions deployment rollback simulation.
 
 ## Recovery Procedure
-1. Connected a secondary test backend environment (`TEST_DATABASE_URL`) to a simulated historical Neon branch.
+1. Connected a secondary test backend environment (`TEST_DATABASE_URL`) to a simulated historical database backup.
 2. Verified backend startup and initial connection.
 3. Queried data successfully reflecting historical state (prior to a simulated destructive CMS operation).
 4. Swapped active environment variable pointers to finalize restore.

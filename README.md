@@ -5,11 +5,11 @@ A comprehensive digital museum platform featuring an interactive frontend and a 
 ## Architecture
 
 The project is structured into two completely distinct applications:
-- **Frontend**: React + Vite + Tailwind CSS (Deployed on Vercel)
-- **Backend**: Flask + SQLAlchemy + Neon PostgreSQL (Deployed on a Flask-compatible platform e.g. Render/Railway)
+- **Frontend**: React + Vite + Tailwind CSS
+- **Backend**: Flask + SQLAlchemy + PostgreSQL
 
 ### Data Flow
-`React (Frontend)` -> `HTTP / REST API (HTTPS)` -> `Flask (Backend, Gunicorn)` -> `SQLAlchemy` -> `Neon PostgreSQL`
+`React (Frontend)` -> `HTTP / REST API (HTTPS)` -> `Flask (Backend, Gunicorn)` -> `SQLAlchemy` -> `PostgreSQL`
 
 ---
 
@@ -26,7 +26,7 @@ FLASK_DEBUG=1
 DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST/DATABASE?sslmode=require
 FRONTEND_URL=http://localhost:5173
 ```
-*Note: The `DATABASE_URL` is where you place your Neon PostgreSQL connection string. Never commit this file to version control.*
+*Note: Set `DATABASE_URL` to the PostgreSQL connection string for your environment. Never commit this file to version control.*
 
 **Frontend (`frontend/.env.local`)**
 Create this file based on `frontend/.env.example`.
@@ -36,13 +36,12 @@ VITE_API_BASE_URL=http://localhost:5000/api
 
 ---
 
-## 2. Neon PostgreSQL Setup
+## 2. PostgreSQL Setup
 
-1. Open your [Neon Dashboard](https://neon.tech/).
-2. Create a new PostgreSQL database.
-3. Copy the connection string.
-4. Paste the connection string into your `backend/.env` file under `DATABASE_URL`.
-5. Run the database migrations (see below) to create all the necessary museum tables.
+1. Create a PostgreSQL database locally or with your preferred host.
+2. Copy its connection string.
+3. Paste the connection string into your `backend/.env` file under `DATABASE_URL`.
+4. Run the database migrations (see below) to create all the necessary museum tables.
 
 ---
 
@@ -93,8 +92,8 @@ VITE_API_BASE_URL=http://localhost:5000/api
 
 ## 5. Deployment Overview
 
-### Frontend Deployment (e.g. Vercel)
-1. Ensure your `frontend/.env.local` variables are configured in Vercel.
+### Frontend Deployment
+1. Ensure your `frontend/.env.local` variables are configured in your hosting environment.
    - `VITE_API_BASE_URL` should point to your live backend domain via HTTPS.
 2. Build commands:
    - Build: `npm run build`
@@ -106,7 +105,7 @@ VITE_API_BASE_URL=http://localhost:5000/api
 2. Configure production Environment Variables securely:
    - `FLASK_ENV=production`
    - `FLASK_DEBUG=0`
-   - `DATABASE_URL=<your-neon-url>`
+   - `DATABASE_URL=<your-postgresql-url>`
    - `FRONTEND_URL=<your-frontend-domain>`
    - `SECRET_KEY=<secure-random-key>`
 3. Set the build command:

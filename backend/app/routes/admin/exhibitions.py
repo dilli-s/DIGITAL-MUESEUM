@@ -72,7 +72,7 @@ def create_exhibition():
             museum_id=data['museum_id'],
             start_date=start_date,
             end_date=end_date,
-            image_url=data.get('image_url')
+            image=data.get('image_url')
         )
         db.session.add(exhibition)
         db.session.commit()
@@ -122,10 +122,12 @@ def update_exhibition(exhibition_id):
         if start_date and end_date and end_date < start_date:
             return jsonify({"error": {"code": "INVALID_INPUT", "message": "End date cannot be before start date."}}), 400
 
-        allowed_fields = ['title', 'description', 'museum_id', 'image_url']
+        allowed_fields = ['title', 'description', 'museum_id']
         for field in allowed_fields:
             if field in data:
                 setattr(exhibition, field, data[field])
+        if 'image_url' in data:
+            exhibition.image = data['image_url']
                 
         exhibition.start_date = start_date
         exhibition.end_date = end_date

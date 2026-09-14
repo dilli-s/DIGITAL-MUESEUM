@@ -52,10 +52,9 @@ def create_learning_resource():
             description=data.get('description'),
             content=data.get('content'),
             object_id=data['object_id'],
-            age_group=data.get('age_group'),
-            difficulty_level=data.get('difficulty_level'),
-            estimated_time=data.get('estimated_time'),
-            cover_image=data.get('cover_image')
+            category=data.get('age_group'),
+            difficulty=data.get('difficulty_level'),
+            duration=str(data.get('estimated_time')) if data.get('estimated_time') else None
         )
         db.session.add(resource)
         db.session.commit()
@@ -81,10 +80,16 @@ def update_learning_resource(learning_id):
             if not obj:
                 return jsonify({"error": {"code": "NOT_FOUND", "message": "Object does not exist."}}), 404
                 
-        allowed_fields = ['title', 'description', 'content', 'object_id', 'age_group', 'difficulty_level', 'estimated_time', 'cover_image']
+        allowed_fields = ['title', 'description', 'content', 'object_id']
         for field in allowed_fields:
             if field in data:
                 setattr(resource, field, data[field])
+        if 'age_group' in data:
+            resource.category = data['age_group']
+        if 'difficulty_level' in data:
+            resource.difficulty = data['difficulty_level']
+        if 'estimated_time' in data:
+            resource.duration = str(data['estimated_time']) if data['estimated_time'] else None
                 
         db.session.commit()
         return jsonify({

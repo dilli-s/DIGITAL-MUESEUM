@@ -53,6 +53,7 @@ def create_gallery():
             museum_id=data['museum_id'],
             image=data.get('image_url') or data.get('image'),
             floor=data.get('floor') or 'Ground Floor',
+            boundary_polygon=data.get('boundary_polygon')
         )
         db.session.add(gallery)
         db.session.commit()
@@ -85,6 +86,7 @@ def update_gallery(gallery_id):
         if 'image_url' in data: gallery.image = data['image_url']
         if 'image' in data: gallery.image = data['image']
         if 'floor' in data: gallery.floor = data['floor']
+        if 'boundary_polygon' in data: gallery.boundary_polygon = data['boundary_polygon']
                 
         db.session.commit()
         return jsonify({

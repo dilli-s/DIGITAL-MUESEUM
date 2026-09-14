@@ -1,7 +1,9 @@
+from typing import Any
 from app.extensions import db
 from datetime import datetime, timezone
+from app.models.base import BaseModel
 
-class UserHistory(db.Model):
+class UserHistory(BaseModel):
     __tablename__ = 'user_history'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -15,7 +17,7 @@ class UserHistory(db.Model):
     # Relationship
     user = db.relationship('User', backref=db.backref('history_records', cascade='all, delete-orphan'))
 
-    def serialize(self):
+    def serialize(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "user_id": self.user_id,

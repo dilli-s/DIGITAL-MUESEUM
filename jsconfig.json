@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "checkJs": false,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "skipLibCheck": true
+  },
+  "include": ["frontend/src/**/*"],
+  "exclude": ["node_modules", "**/node_modules", "**/dist", "backups", "backend", "flask-mapping-service", "mobile"]
+}

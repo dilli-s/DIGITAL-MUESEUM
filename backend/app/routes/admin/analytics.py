@@ -62,7 +62,7 @@ def get_user_analytics():
         
         users_with_learning = db.session.query(LearningProgress.user_id).distinct().count()
         users_with_bookmarks = db.session.query(Bookmark.user_id).distinct().count()
-        users_completing_activities = db.session.query(ActivityProgress.user_id).filter_by(is_completed=True).distinct().count()
+        users_completing_activities = db.session.query(ActivityProgress.user_id).filter(ActivityProgress.completed.is_(True)).distinct().count()
         
         return jsonify({
             "data": {
@@ -112,7 +112,8 @@ def get_popular_content():
             if obj:
                 popular_objects.append({
                     "id": obj.id,
-                    "title": obj.title,
+                    "title": obj.name,
+                    "name": obj.name,
                     "views": views,
                     "bookmarks": db.session.query(Bookmark).filter_by(content_type='object', content_id=obj.id).count()
                 })
@@ -129,10 +130,10 @@ def get_bookmark_analytics():
         
         # Breakdown by type
         by_type = db.session.query(
-            Bookmark.item_type, func.count(Bookmark.id)
-        ).group_by(Bookmark.item_type).all()
+            Bookmark.content_type, func.count(Bookmark.id)
+        ).group_by(Bookmark.content_type).all()
         
-        breakdown = {item_type: count for item_type, count in by_type}
+        breakdown = {content_type: count for content_type, count in by_type}
         
         return jsonify({
             "data": {
@@ -149,7 +150,7 @@ def get_learning_analytics():
     try:
         total_items = db.session.query(LearningResource).count()
         started = db.session.query(LearningProgress).count()
-        completed = db.session.query(LearningProgress).filter_by(is_completed=True).count()
+        completed = db.session.query(LearningProgress).filter_by(status='completed').count()
         
         completion_rate = (completed / started * 100) if started > 0 else 0
         
@@ -170,7 +171,7 @@ def get_activity_analytics():
     try:
         total_items = db.session.query(Activity).count()
         attempts = db.session.query(ActivityProgress).count()
-        completed = db.session.query(ActivityProgress).filter_by(is_completed=True).count()
+        completed = db.session.query(ActivityProgress).filter(ActivityProgress.completed.is_(True)).count()
         
         completion_rate = (completed / attempts * 100) if attempts > 0 else 0
         
@@ -192,7 +193,7 @@ def get_trends():
         from_date, to_date = parse_dates(request)
         
         # SQLite doesn't have a simple standard DATE() func that groups easily in SQLAlchemy cross-database out of the box with func.date, 
-        # but func.date(UserHistory.created_at) works in SQLite. Neon (PostgreSQL) uses DATE(created_at).
+        # func.date(UserHistory.created_at) works in SQLite and PostgreSQL.
         # We can fetch raw data or use generic casting. To avoid cross-DB issues, we fetch in range and group in Python.
         
         history_records = db.session.query(UserHistory.created_at).filter(UserHistory.created_at >= from_date, UserHistory.created_at <= to_date).all()

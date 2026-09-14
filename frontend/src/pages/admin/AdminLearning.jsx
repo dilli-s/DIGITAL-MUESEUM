@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAdminLearningResources, createAdminLearningResource, updateAdminLearningResource, deleteAdminLearningResource, getAdminObjects } from '../../services/api';
-import { Plus, Edit, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, X, AlertTriangle, Upload } from 'lucide-react';
+import GenericCsvImporter from '../../components/admin/GenericCsvImporter';
 
 const AdminLearning = () => {
   const [resources, setResources] = useState([]);
@@ -16,7 +17,7 @@ const AdminLearning = () => {
   });
   const [formError, setFormError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ const AdminLearning = () => {
       const res = await getAdminLearningResources();
       setResources(res.data || []);
     } catch (err) {
-      console.error(err);
+      console.log(err);
     }
   };
 
@@ -107,7 +108,7 @@ const AdminLearning = () => {
       setDeleteConfirm(null);
       fetchResources();
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to delete resource.');
+      console.log(err.response?.data?.error?.message || 'Failed to delete resource.');
       setDeleteConfirm(null);
     }
   };
@@ -119,9 +120,17 @@ const AdminLearning = () => {
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-neutral-900">Manage Learning Resources</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800">
-          <Plus className="w-5 h-5 mr-2" /> Add Resource
-        </button>
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => setIsCsvModalOpen(true)} 
+            className="flex items-center px-4 py-2 border border-neutral-300 bg-white text-neutral-800 rounded-md hover:bg-neutral-50 font-medium text-sm shadow-xs transition"
+          >
+            <Upload className="w-4 h-4 mr-2 text-indigo-600" /> Bulk Import CSV
+          </button>
+          <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 font-medium text-sm">
+            <Plus className="w-5 h-5 mr-2" /> Add Resource
+          </button>
+        </div>
       </div>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-neutral-200">
@@ -178,7 +187,7 @@ const AdminLearning = () => {
                 <select required value={formData.object_id} onChange={e => setFormData({...formData, object_id: e.target.value})} className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border">
                   <option value="">Select an Object</option>
                   {objects.map(o => (
-                    <option key={o.id} value={o.id}>{o.title}</option>
+                    <option key={o.id} value={o.id}>{o.name}</option>
                   ))}
                 </select>
               </div>
@@ -236,6 +245,18 @@ const AdminLearning = () => {
           </div>
         </div>
       )}
+
+      {/* CSV Bulk Importer Modal */}
+      <GenericCsvImporter
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        entityType="learning"
+        existingItems={resources}
+        createItem={createAdminLearningResource}
+        updateItem={updateAdminLearningResource}
+        onSuccess={fetchResources}
+        defaultContext={objects.length > 0 ? { object_id: objects[0].id } : {}}
+      />
     </div>
   );
 };

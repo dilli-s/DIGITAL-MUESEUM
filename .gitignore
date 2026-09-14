@@ -47,3 +47,10 @@ frontend/.npm/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Backups & Android builds
+backups/
+mobile/android/build/
+mobile/android/.gradle/
+mobile/build/
+mobile/.dart_tool/

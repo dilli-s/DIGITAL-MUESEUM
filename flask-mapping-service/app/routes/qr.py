@@ -23,7 +23,7 @@ def list_qrs():
         logging.error(f"Error fetching qr locations: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-@qr_bp.route('/qr-locations/<payload>', methods=['GET'])
+@qr_bp.route('/qr-locations/<path:payload>', methods=['GET'])
 def resolve_qr(payload):
     try:
         res = resolve_qr_payload(payload)

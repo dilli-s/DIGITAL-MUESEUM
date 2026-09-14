@@ -7,20 +7,19 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 
 from app import create_app
 from app.extensions import db
-from app.models import Museum, Gallery, Collection, Exhibition, MuseumObject, LearningResource
+from app.models import Museum, Gallery, Collection, Exhibition, MuseumObject, LearningResource, Story, Activity
 
-def load_data():
-    path = os.path.join(os.path.dirname(__file__), '..', '..', 'seed_data.json')
-    if not os.path.exists(path):
-        print(f"Error: {path} not found.")
+def load_data(include_examples=False):
+    if not include_examples:
         return {}
+    path = os.path.join(os.path.dirname(__file__), '..', '..', 'seed_data.json')
     with open(path, 'r') as f:
         return json.load(f)
 
-def seed():
+def seed(include_examples=False):
     app = create_app()
     with app.app_context():
-        data = load_data()
+        data = load_data(include_examples)
         if not data:
             return
 
@@ -54,6 +53,7 @@ def seed():
                 gallery.name = g_data.get('name')
                 gallery.description = g_data.get('description')
                 gallery.image = g_data.get('image')
+                gallery.floor = g_data.get('floor', '1')
 
             db.session.flush()
 
@@ -152,6 +152,42 @@ def seed():
                 lr.category = l_data.get('category')
                 lr.featured = l_data.get('featured', False)
 
+            db.session.flush()
+
+            # 8. Stories
+            stories_inserted = 0
+            for s_data in data.get('stories', []):
+                story = db.session.get(Story, s_data['id'])
+                if not story:
+                    story = Story(id=s_data['id'])
+                    db.session.add(story)
+                    stories_inserted += 1
+
+                story.object_id = s_data.get('objectId')
+                story.title = s_data.get('title')
+                story.summary = s_data.get('summary')
+                story.image = s_data.get('image')
+                story.content = s_data.get('content')
+                story.duration = s_data.get('duration')
+
+            db.session.flush()
+
+            # 9. Activities
+            activities_inserted = 0
+            for a_data in data.get('activities', []):
+                activity = db.session.get(Activity, a_data['id'])
+                if not activity:
+                    activity = Activity(id=a_data['id'])
+                    db.session.add(activity)
+                    activities_inserted += 1
+
+                activity.object_id = a_data.get('objectId')
+                activity.title = a_data.get('title')
+                activity.description = a_data.get('description')
+                activity.type = a_data.get('type')
+                activity.difficulty = a_data.get('difficulty')
+                activity.questions = a_data.get('questions')
+
             db.session.commit()
             
             print(f"Museums inserted: {museums_inserted}")
@@ -161,10 +197,12 @@ def seed():
             print(f"Objects inserted: {objects_inserted}")
             print(f"Exhibition relationships inserted: {relationships_inserted}")
             print(f"Learning inserted: {learning_inserted}")
+            print(f"Stories inserted: {stories_inserted}")
+            print(f"Activities inserted: {activities_inserted}")
             
         except Exception as e:
             db.session.rollback()
             print(f"Errors:\n{e}")
 
 if __name__ == '__main__':
-    seed()
+    seed('--example' in sys.argv)

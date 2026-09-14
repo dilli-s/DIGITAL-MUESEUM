@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getObject, getLearning } from '../services/api';
+import { getObject, getLearning, getObjectRecommendations } from '../services/api';
 import { themes } from '../data/themes';
 import { stories } from '../data/stories';
 import { ChevronRight, ArrowLeft, RefreshCw } from 'lucide-react';
@@ -15,6 +15,7 @@ const ExploreMore = () => {
   
   const [object, setObject] = useState(null);
   const [learningItems, setLearningItems] = useState([]);
+  const [recommendations, setRecommendations] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -23,8 +24,12 @@ const ExploreMore = () => {
         const obj = await getObject(objectId);
         setObject(obj);
         
-        const lr = await getLearning({ object_id: objectId });
+        const [lr, recs] = await Promise.all([
+          getLearning({ object_id: objectId }),
+          getObjectRecommendations(objectId).catch(() => ({ data: null })),
+        ]);
         setLearningItems(lr.data || []);
+        setRecommendations(recs.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -59,13 +64,18 @@ const ExploreMore = () => {
     );
   }
 
-  // Resolve related content
-  // Note: related objects are not supported by the Phase 12 database schema yet.
-  const relatedObjects = [];
+  const relatedObjects = (recommendations?.related_objects || []).map(item => ({
+    ...item,
+    shortDescription: item.category || 'Related museum object',
+  }));
   
-  const relatedThemes = (object.themeIds || []).map(id => themes.find(t => String(t.id) === String(id))).filter(Boolean);
-  const objectStories = stories.filter(s => String(s.objectId) === String(objectId));
-  const objectLearning = learningItems;
+  const relatedThemes = recommendations?.themes?.length
+    ? recommendations.themes
+    : (object.themeIds || []).map(id => themes.find(t => String(t.id) === String(id))).filter(Boolean);
+  const objectStories = recommendations?.stories?.length
+    ? recommendations.stories
+    : stories.filter(s => String(s.objectId) === String(objectId));
+  const objectLearning = recommendations?.learning?.length ? recommendations.learning : learningItems;
 
   return (
     <div className="w-full">

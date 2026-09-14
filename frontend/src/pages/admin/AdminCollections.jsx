@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAdminCollections, createAdminCollection, updateAdminCollection, deleteAdminCollection, getAdminMuseums, getAdminGalleries, uploadFile } from '../../services/api';
-import { Plus, Edit, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, X, AlertTriangle, Upload } from 'lucide-react';
+import GenericCsvImporter from '../../components/admin/GenericCsvImporter';
 
 const AdminCollections = () => {
   const [collections, setCollections] = useState([]);
@@ -15,7 +16,7 @@ const AdminCollections = () => {
   const [formError, setFormError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const handleUpload = async (e, field) => {
@@ -29,7 +30,7 @@ const AdminCollections = () => {
         setFormData(prev => ({ ...prev, [field]: res.data.url }));
       }
     } catch (err) {
-      alert('Failed to upload file. Please try again.');
+      console.log('Failed to upload file. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -62,7 +63,7 @@ const AdminCollections = () => {
       const res = await getAdminCollections();
       setCollections(res.data || []);
     } catch (err) {
-      console.error(err);
+      console.log(err);
     }
   };
 
@@ -119,7 +120,7 @@ const AdminCollections = () => {
       setDeleteConfirm(null);
       fetchCollections();
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to delete collection.');
+      console.log(err.response?.data?.error?.message || 'Failed to delete collection.');
       setDeleteConfirm(null);
     }
   };
@@ -133,9 +134,17 @@ const AdminCollections = () => {
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-neutral-900">Manage Collections</h1>
-        <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800">
-          <Plus className="w-5 h-5 mr-2" /> Add Collection
-        </button>
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => setIsCsvModalOpen(true)} 
+            className="flex items-center px-4 py-2 border border-neutral-300 bg-white text-neutral-800 rounded-md hover:bg-neutral-50 font-medium text-sm shadow-xs transition"
+          >
+            <Upload className="w-4 h-4 mr-2 text-indigo-600" /> Bulk Import CSV
+          </button>
+          <button onClick={openAddModal} className="flex items-center px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 font-medium text-sm">
+            <Plus className="w-5 h-5 mr-2" /> Add Collection
+          </button>
+        </div>
       </div>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-neutral-200">
@@ -247,6 +256,18 @@ const AdminCollections = () => {
           </div>
         </div>
       )}
+
+      {/* CSV Bulk Importer Modal */}
+      <GenericCsvImporter
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        entityType="collections"
+        existingItems={collections}
+        createItem={createAdminCollection}
+        updateItem={updateAdminCollection}
+        onSuccess={fetchCollections}
+        defaultContext={museums.length > 0 ? { museum_id: museums[0].id } : {}}
+      />
     </div>
   );
 };

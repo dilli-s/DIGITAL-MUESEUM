@@ -9,12 +9,7 @@
  */
 export function calculateDistance(lat1, lon1, lat2, lon2) {
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
-
-  const dx = lon2 - lon1; // longitude is X
-  const dy = lat2 - lat1; // latitude is Y
-  
-  // Multiply by 5 to give a rough "meters" equivalent for a 0-100 percentage scale
-  return Math.sqrt(dx * dx + dy * dy) * 5;
+  return haversineDistance(lat1, lon1, lat2, lon2);
 }
 
 /**
@@ -144,7 +139,48 @@ export function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+export function formatDistance(distanceInMeters) {
+  if (distanceInMeters == null) return '';
+  if (distanceInMeters < 10) {
+    return distanceInMeters.toFixed(1);
+  }
+  return Math.round(distanceInMeters).toString();
+}
+
 export function latlngToPixel(lat, lng, floorPlan) {
+  if (!floorPlan || lat == null || lng == null) return null;
+
+  const w = parseFloat(floorPlan.width_px || 1000);
+  const h = parseFloat(floorPlan.height_px || 1000);
+
+  // 1. Check affine_transform first (exact 6-parameter affine inverse)
+  let affine = floorPlan.affine_transform;
+  if (typeof affine === 'string') {
+    try { affine = JSON.parse(affine); } catch { affine = null; }
+  }
+
+  if (affine && typeof affine === 'object') {
+    if (affine.type === 'affine' && affine.a != null && affine.e != null) {
+      const det = affine.a * affine.e - affine.b * affine.d;
+      if (Math.abs(det) > 1e-12) {
+        const normX = (affine.e * (lng - affine.c) - affine.b * (lat - affine.f)) / det;
+        const normY = (-affine.d * (lng - affine.c) + affine.a * (lat - affine.f)) / det;
+        return {
+          x: Math.max(0, Math.min(1, normX)) * w,
+          y: Math.max(0, Math.min(1, normY)) * h
+        };
+      }
+    } else if (affine.type === 'similarity' && affine.scale_x) {
+      const normX = (lng - affine.offset_x) / affine.scale_x;
+      const normY = (lat - affine.offset_y) / affine.scale_y;
+      return {
+        x: Math.max(0, Math.min(1, normX)) * w,
+        y: Math.max(0, Math.min(1, normY)) * h
+      };
+    }
+  }
+
+  // 2. Fallback to anchor_1 and anchor_2
   const x1 = floorPlan.anchor_1_x_px;
   const y1 = floorPlan.anchor_1_y_px;
   const lat1 = floorPlan.anchor_1_lat;
@@ -191,3 +227,138 @@ export function latlngToPixel(lat, lng, floorPlan) {
     y: y1 + rotated_dlat
   };
 }
+
+export function mapXyToGps(x_norm, y_norm, floorPlan, museum = null) {
+  if (!floorPlan) return { lat: null, lng: null };
+
+  const w = floorPlan.width_px || 1000;
+  const h = floorPlan.height_px || 1000;
+  const normX = x_norm <= 1.0 ? x_norm : (w > 0 ? x_norm / w : 0);
+  const normY = y_norm <= 1.0 ? y_norm : (h > 0 ? y_norm / h : 0);
+
+  // 1. Check affine_transform first
+  let affine = floorPlan.affine_transform;
+  if (typeof affine === 'string') {
+    try { affine = JSON.parse(affine); } catch { affine = null; }
+  }
+
+  if (affine && typeof affine === 'object') {
+    if (affine.type === 'affine' && affine.a != null && affine.e != null) {
+      const lng = affine.a * normX + affine.b * normY + affine.c;
+      const lat = affine.d * normX + affine.e * normY + affine.f;
+      return {
+        lat: parseFloat(lat.toFixed(7)),
+        lng: parseFloat(lng.toFixed(7))
+      };
+    } else if (affine.type === 'similarity' && affine.scale_x != null) {
+      const lng = affine.scale_x * normX + affine.offset_x;
+      const lat = affine.scale_y * normY + affine.offset_y;
+      return {
+        lat: parseFloat(lat.toFixed(7)),
+        lng: parseFloat(lng.toFixed(7))
+      };
+    }
+  }
+
+  // 2. Fallback to anchor_1 and anchor_2
+  const x1 = floorPlan.anchor_1_x_px;
+  const y1 = floorPlan.anchor_1_y_px;
+  const lat1 = floorPlan.anchor_1_lat;
+  const lng1 = floorPlan.anchor_1_lng;
+  
+  const x2 = floorPlan.anchor_2_x_px;
+  const y2 = floorPlan.anchor_2_y_px;
+  const lat2 = floorPlan.anchor_2_lat;
+  const lng2 = floorPlan.anchor_2_lng;
+
+  const pxX = normX * w;
+  const pxY = normY * h;
+
+  if (x1 != null && y1 != null && lat1 != null && lng1 != null &&
+      x2 != null && y2 != null && lat2 != null && lng2 != null) {
+    const dx_px = x2 - x1;
+    const dy_px = y2 - y1;
+    const dlat = lat2 - lat1;
+    const dlng = lng2 - lng1;
+
+    const theta_px = Math.atan2(dy_px, dx_px);
+    const theta_geo = Math.atan2(dlat, dlng);
+    const theta = theta_geo - theta_px;
+
+    const dist_px = Math.sqrt(dx_px * dx_px + dy_px * dy_px);
+    const dist_geo = Math.sqrt(dlng * dlng + dlat * dlat);
+
+    if (dist_px > 0) {
+      const scale = dist_geo / dist_px;
+      const dpx = pxX - x1;
+      const dpy = pxY - y1;
+
+      const cos_t = Math.cos(theta);
+      const sin_t = Math.sin(theta);
+
+      const dlng_pt = (dpx * cos_t - dpy * sin_t) * scale;
+      const dlat_pt = (dpx * sin_t + dpy * cos_t) * scale;
+
+      return {
+        lat: parseFloat((lat1 + dlat_pt).toFixed(7)),
+        lng: parseFloat((lng1 + dlng_pt).toFixed(7))
+      };
+    }
+  }
+
+  if (museum && museum.bounds_tl_lat && museum.bounds_br_lat && museum.bounds_tl_lng && museum.bounds_br_lng) {
+    const tlLat = parseFloat(museum.bounds_tl_lat);
+    const tlLng = parseFloat(museum.bounds_tl_lng);
+    const brLat = parseFloat(museum.bounds_br_lat);
+    const brLng = parseFloat(museum.bounds_br_lng);
+
+    const derivedLat = tlLat - normY * (tlLat - brLat);
+    const derivedLng = tlLng + normX * (brLng - tlLng);
+    return {
+      lat: parseFloat(derivedLat.toFixed(7)),
+      lng: parseFloat(derivedLng.toFixed(7))
+    };
+  }
+
+  return { lat: null, lng: null };
+}
+
+export function gpsToMapXy(lat, lng, floorPlan) {
+  if (!floorPlan || lat == null || lng == null) return { x: null, y: null };
+
+  let affine = floorPlan.affine_transform;
+  if (typeof affine === 'string') {
+    try { affine = JSON.parse(affine); } catch { affine = null; }
+  }
+
+  if (affine && typeof affine === 'object') {
+    if (affine.type === 'affine' && affine.a != null && affine.e != null) {
+      const det = affine.a * affine.e - affine.b * affine.d;
+      if (Math.abs(det) > 1e-12) {
+        const normX = (affine.e * (lng - affine.c) - affine.b * (lat - affine.f)) / det;
+        const normY = (-affine.d * (lng - affine.c) + affine.a * (lat - affine.f)) / det;
+        return {
+          x: Math.max(0, Math.min(1, normX)),
+          y: Math.max(0, Math.min(1, normY))
+        };
+      }
+    } else if (affine.type === 'similarity' && affine.scale_x) {
+      const normX = (lng - affine.offset_x) / affine.scale_x;
+      const normY = (lat - affine.offset_y) / affine.scale_y;
+      return {
+        x: Math.max(0, Math.min(1, normX)),
+        y: Math.max(0, Math.min(1, normY))
+      };
+    }
+  }
+
+  const px = latlngToPixel(lat, lng, floorPlan);
+  if (!px) return { x: null, y: null };
+  const w = parseFloat(floorPlan.width_px || 1000);
+  const h = parseFloat(floorPlan.height_px || 1000);
+  return {
+    x: px.x / w,
+    y: px.y / h
+  };
+}
+

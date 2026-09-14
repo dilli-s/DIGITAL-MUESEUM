@@ -23,7 +23,7 @@ const MuseumAccessHub = () => {
           Choose Your Museum Experience
         </h2>
         <p className="text-lg text-neutral-500 max-w-xl mx-auto">
-          Explore the world's culture digitally from your screen, or step inside and let QR codes guide your physical visit.
+          Explore the world's culture digitally from your screen, or use our Flutter mobile app for on-site interactive visits.
         </p>
       </div>
 
@@ -78,7 +78,7 @@ const MuseumAccessHub = () => {
           </div>
         </div>
 
-        {/* Physical Museum Card */}
+        {/* Flutter Mobile App Card */}
         <div className="group relative bg-gradient-to-br from-stone-800 to-stone-950 text-white rounded-3xl overflow-hidden shadow-xl">
           {/* Decorative dots */}
           <div className="absolute inset-0 opacity-10"
@@ -91,12 +91,12 @@ const MuseumAccessHub = () => {
               <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6 ring-1 ring-white/20">
                 <QrCode className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-3xl font-bold mb-3">Physical Museum</h3>
+              <h3 className="text-3xl font-bold mb-3">Flutter Mobile App</h3>
               <p className="text-neutral-400 text-base leading-relaxed mb-6 max-w-sm">
-                Visit a museum in person and use your phone to scan QR codes on objects for instant digital information, stories, and audio guides.
+                Visiting in person? Use our Flutter mobile application for interactive on-site QR checkpoint scanning, indoor maps, and turn-by-turn routing.
               </p>
               <ul className="space-y-2 mb-8">
-                {['Scan QR codes on real objects', 'Get instant digital info & audio', 'Navigate with interactive maps', 'Access offline during your visit'].map(f => (
+                {['Scan QR codes on museum exhibits', 'Turn-by-turn indoor map navigation', 'Audio guides with speed & language control', 'Offline capability during your visit'].map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm text-neutral-300">
                     <div className="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0" />
                     {f}
@@ -105,21 +105,10 @@ const MuseumAccessHub = () => {
               </ul>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                to="/physical"
-                className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 transition-all group-hover:shadow-lg text-sm"
-              >
-                <MapPin className="w-4 h-4" />
-                Plan Your Visit
-                <ChevronRight className="w-4 h-4" />
-              </Link>
-              <Link
-                to="/"
-                className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-all text-sm ring-1 ring-white/20"
-              >
-                <QrCode className="w-4 h-4" />
-                Scan Now
-              </Link>
+              <div className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-neutral-900 font-bold rounded-xl text-sm shadow-sm">
+                <Navigation className="w-4 h-4" />
+                Available on Mobile (Flutter)
+              </div>
             </div>
           </div>
         </div>

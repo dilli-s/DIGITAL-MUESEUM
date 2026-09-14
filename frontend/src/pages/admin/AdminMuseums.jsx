@@ -8,6 +8,7 @@ const AdminMuseums = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeQrMuseum, setActiveQrMuseum] = useState(null);
   const [editingMuseum, setEditingMuseum] = useState(null);
   const [formData, setFormData] = useState({ 
     name: '', description: '', location: '', established_year: '', image_url: '',
@@ -239,13 +240,24 @@ const AdminMuseums = () => {
               <tr key={museum.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{museum.id}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="bg-white p-1 rounded-md border border-neutral-200 inline-block">
-                    <QRCodeCanvas value={`${window.location.origin}/museums/${museum.id}`} size={64} level="M" />
+                  <div 
+                    onClick={() => setActiveQrMuseum(museum)} 
+                    title="Click to view & download Entrance Sign QR"
+                    className="bg-white p-1 rounded-md border border-neutral-200 inline-block cursor-pointer hover:border-indigo-500 hover:shadow-md transition"
+                  >
+                    <QRCodeCanvas value={`${window.location.origin}/m/${museum.id}`} size={64} level="M" />
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{museum.name}</td>
                 <td className="px-6 py-4 max-w-xs truncate text-sm text-neutral-500" title={museum.location}>{museum.location}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button 
+                    onClick={() => setActiveQrMuseum(museum)} 
+                    title="Download Physical Entrance Sign QR" 
+                    className="text-emerald-600 hover:text-emerald-900 mr-4 inline-flex items-center text-xs font-semibold"
+                  >
+                    <QrCode className="w-4 h-4 mr-1 inline" /> Sign
+                  </button>
                   <button onClick={() => openEditModal(museum)} className="text-indigo-600 hover:text-indigo-900 mr-4">
                     <Edit className="w-4 h-4 inline" />
                   </button>
@@ -258,6 +270,81 @@ const AdminMuseums = () => {
           </tbody>
         </table>
       </div>
+
+
+      {/* Physical Entrance Sign QR Modal */}
+      {activeQrMuseum && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-neutral-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-neutral-100 bg-neutral-50">
+              <div className="flex items-center space-x-2">
+                <QrCode className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-neutral-800 text-lg">Entrance Sign QR Code</h3>
+              </div>
+              <button 
+                onClick={() => setActiveQrMuseum(null)}
+                className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg hover:bg-neutral-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 text-center space-y-4">
+              <div className="border-2 border-dashed border-indigo-200 rounded-xl p-6 bg-indigo-50/30 flex flex-col items-center">
+                <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-1">Physical Entrance Sign</span>
+                <h4 className="text-xl font-extrabold text-neutral-900">{activeQrMuseum.name}</h4>
+                <p className="text-xs text-neutral-500 mb-4">{activeQrMuseum.location || 'Museum Entrance'}</p>
+
+                <div className="p-3 bg-white rounded-2xl shadow-lg border border-neutral-200 inline-block">
+                  <QRCodeCanvas 
+                    id={`entrance_qr_${activeQrMuseum.id}`}
+                    value={`${window.location.origin}/m/${activeQrMuseum.id}`} 
+                    size={200} 
+                    level="H" 
+                    includeMargin={true}
+                  />
+                </div>
+
+                <p className="text-xs font-medium text-neutral-600 mt-4 max-w-xs">
+                  Scan with your phone camera to launch direct navigation or install the app automatically.
+                </p>
+                <code className="text-[11px] bg-white px-2 py-1 rounded border border-neutral-200 text-neutral-700 font-mono mt-2 select-all">
+                  {`${window.location.origin}/m/${activeQrMuseum.id}`}
+                </code>
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const canvas = document.getElementById(`entrance_qr_${activeQrMuseum.id}`);
+                    if (canvas) {
+                      const pngUrl = canvas.toDataURL('image/png');
+                      const link = document.createElement('a');
+                      link.download = `${activeQrMuseum.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_entrance_qr.png`;
+                      link.href = pngUrl;
+                      link.click();
+                    }
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold flex items-center justify-center space-x-1.5 shadow transition"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download QR</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="py-2.5 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl text-sm font-semibold flex items-center justify-center space-x-1.5 transition"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

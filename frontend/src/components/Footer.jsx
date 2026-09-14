@@ -9,7 +9,7 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-1">
             <h2 className="text-white text-lg font-bold tracking-tight mb-4">DIGITAL MUSEUM</h2>
             <p className="text-sm text-neutral-400">
-              Explore history, art, and culture from around the world through our virtual and physical museum experiences.
+              Explore history, art, and culture from around the world through our virtual museum experiences.
             </p>
           </div>
           
@@ -19,7 +19,6 @@ const Footer = () => {
               <li><Link to="/" className="hover:text-white transition-colors">Home</Link></li>
               <li><Link to="/museums" className="hover:text-white transition-colors">Museums</Link></li>
               <li><Link to="/explore" className="hover:text-white transition-colors">Explore</Link></li>
-              <li><Link to="/physical" className="hover:text-white transition-colors">Physical Museum</Link></li>
               <li><Link to="/search" className="hover:text-white transition-colors">Search</Link></li>
             </ul>
           </div>

@@ -1,8 +1,8 @@
+import MuseumDeepLinkGateway from '../pages/MuseumDeepLinkGateway';
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import AdminRoute from '../components/auth/AdminRoute';
-
 import Home from '../pages/Home';
 import Museums from '../pages/Museums';
 import MuseumDetails from '../pages/MuseumDetails';
@@ -22,8 +22,7 @@ import StoryDetails from '../pages/StoryDetails';
 import Activity from '../pages/Activity';
 import Search from '../pages/Search';
 import Scan from '../pages/Scan';
-import PhysicalMuseum from '../pages/PhysicalMuseum';
-import MuseumMap from '../pages/MuseumMap';
+
 import Assistant from '../pages/Assistant';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
@@ -41,14 +40,19 @@ import AdminLearning from '../pages/admin/AdminLearning';
 import AdminStories from '../pages/admin/AdminStories';
 import AdminActivities from '../pages/admin/AdminActivities';
 import AdminAnalytics from '../pages/admin/AdminAnalytics';
-import AdminMapEditor from '../pages/admin/AdminMapEditor';
+import AdminCoordinateEditor from '../pages/admin/AdminCoordinateEditor';
+import AdminGPSDashboard from '../pages/admin/AdminGPSDashboard';
 import AdminUsers from '../pages/admin/AdminUsers';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const AppRoutes = () => {
   console.log('AppRoutes rendering');
   return (
-    <Routes>
-      <Route path="/" element={<Scan />} />
+    <ErrorBoundary>
+      <Routes>
+      <Route path="/m/:museumId" element={<MuseumDeepLinkGateway />} />
+
+      <Route path="/" element={<Home />} />
       <Route path="/home" element={<Home />} />
       <Route path="/museums" element={<Museums />} />
       <Route path="/museums/:museumId" element={<MuseumDetails />} />
@@ -62,16 +66,15 @@ const AppRoutes = () => {
       <Route path="/objects/:objectId" element={<ObjectDetails />} />
       <Route path="/objects/:objectId/explore" element={<ExploreMore />} />
       <Route path="/objects/:objectId/learn" element={<ObjectLearning />} />
+      <Route path="/explore" element={<ExploreMore />} />
       <Route path="/learning" element={<Learning />} />
       <Route path="/learning/:learningId" element={<LearningDetails />} />
       <Route path="/stories/:storyId" element={<StoryDetails />} />
       <Route path="/learning/activity/:activityId" element={<Activity />} />
-      <Route path="/explore" element={<ExploreMore />} />
-      <Route path="/search" element={<Search />} />
       <Route path="/scan" element={<Scan />} />
+      <Route path="/search" element={<Search />} />
       <Route path="/assistant" element={<Assistant />} />
-      <Route path="/physical" element={<PhysicalMuseum />} />
-      <Route path="/physical/map" element={<MuseumMap />} />
+
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/profile" element={
@@ -104,7 +107,7 @@ const AppRoutes = () => {
       } />
       <Route path="/admin/collections" element={
         <AdminRoute>
-          <AdminCollections />
+          <AdminCollections /> 
         </AdminRoute>
       } />
       <Route path="/admin/exhibitions" element={
@@ -122,9 +125,14 @@ const AppRoutes = () => {
           <AdminLearning />
         </AdminRoute>
       } />
-      <Route path="/admin/map-editor" element={
+      <Route path="/admin/coordinates" element={
         <AdminRoute>
-          <AdminMapEditor />
+          <AdminCoordinateEditor />
+        </AdminRoute>
+      } />
+      <Route path="/admin/gps-dashboard" element={
+        <AdminRoute>
+          <AdminGPSDashboard />
         </AdminRoute>
       } />
       <Route path="/admin/stories" element={
@@ -150,7 +158,8 @@ const AppRoutes = () => {
       
       {/* Fallback 404 Route */}
       <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </ErrorBoundary>
   );
 };
 

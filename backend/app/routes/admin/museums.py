@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from sqlalchemy import text
 from app.utils.decorators import admin_required
 from app.models import Museum, Gallery, MuseumObject, Exhibition, Collection
 from app.extensions import db
@@ -134,13 +135,68 @@ def delete_museum(museum_id):
         museum = Museum.query.get(museum_id)
         if not museum:
             return jsonify({"error": {"code": "NOT_FOUND", "message": "Museum not found."}}), 404
-            
+
+        # 1. Cascade delete floor plans and mapping service tables for this museum
+        db.session.execute(text("DELETE FROM floor_plans WHERE museum_id = :mid"), {"mid": museum_id})
+        db.session.execute(text("DELETE FROM floor_plans WHERE museum_id IS NULL"))
+        
+        # 2. Delete museum (cascades galleries, objects, collections, exhibitions in SQLAlchemy)
         db.session.delete(museum)
         db.session.commit()
+
+        # 3. If no museums left, restart sequence from 1; otherwise synchronize sequence to MAX(id)
+        remaining = Museum.query.count()
+        if remaining == 0:
+            db.session.execute(text("ALTER SEQUENCE museums_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE galleries_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE objects_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE collections_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE exhibitions_id_seq RESTART WITH 1;"))
+            db.session.execute(text("ALTER SEQUENCE stories_id_seq RESTART WITH 1;"))
+        else:
+            db.session.execute(text("SELECT setval('museums_id_seq', (SELECT COALESCE(MAX(id), 0) FROM museums) + 1, false);"))
+        db.session.commit()
+
         return jsonify({
-            "data": {"success": True}
+            "data": {"success": True, "remaining_museums": remaining}
         })
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": {"code": "SERVER_ERROR", "message": str(e)}}), 500
+
+@admin_museums_bp.route('/museums/reset-all', methods=['POST'])
+@admin_required
+def reset_all_data():
+    """Wipes all previous data and resets all sequences to 1."""
+    try:
+        # Delete floor plans and mapping nodes/edges
+        db.session.execute(text("DELETE FROM map_edges;"))
+        db.session.execute(text("DELETE FROM qr_locations;"))
+        db.session.execute(text("DELETE FROM map_nodes;"))
+        db.session.execute(text("DELETE FROM floor_plans;"))
+        
+        # Delete app entities
+        db.session.execute(text("DELETE FROM stories;"))
+        db.session.execute(text("DELETE FROM objects;"))
+        db.session.execute(text("DELETE FROM exhibitions;"))
+        db.session.execute(text("DELETE FROM collections;"))
+        db.session.execute(text("DELETE FROM galleries;"))
+        db.session.execute(text("DELETE FROM museums;"))
+
+        # Reset sequences to restart from 1
+        db.session.execute(text("ALTER SEQUENCE museums_id_seq RESTART WITH 1;"))
+        db.session.execute(text("ALTER SEQUENCE galleries_id_seq RESTART WITH 1;"))
+        db.session.execute(text("ALTER SEQUENCE objects_id_seq RESTART WITH 1;"))
+        db.session.execute(text("ALTER SEQUENCE collections_id_seq RESTART WITH 1;"))
+        db.session.execute(text("ALTER SEQUENCE exhibitions_id_seq RESTART WITH 1;"))
+        db.session.execute(text("ALTER SEQUENCE stories_id_seq RESTART WITH 1;"))
+        db.session.commit()
+
+        return jsonify({
+            "data": {"success": True, "message": "All data removed and sequences reset from 1."}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": {"code": "SERVER_ERROR", "message": str(e)}}), 500
+
 

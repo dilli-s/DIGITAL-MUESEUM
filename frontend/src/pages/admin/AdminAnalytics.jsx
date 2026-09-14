@@ -28,15 +28,20 @@ const AdminAnalytics = () => {
     setError(null);
     try {
       // Load health and summary first as they are most important overview
-      const [summaryRes, healthRes] = await Promise.all([
+      const [summaryRes, healthRes] = await Promise.allSettled([
         getAdminAnalyticsSummary(),
         getAdminHealth()
       ]);
-      setSummary(summaryRes.data);
-      setHealth(healthRes.data);
+
+      if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value.data);
+      if (healthRes.status === 'fulfilled') setHealth(healthRes.value.data);
+
+      if (summaryRes.status === 'rejected' && healthRes.status === 'rejected') {
+        throw new Error('Analytics and health services are unreachable.');
+      }
       
       // Load details concurrently
-      const [usersRes, contentRes, popRes, learnRes, actRes] = await Promise.all([
+      const [usersRes, contentRes, popRes, learnRes, actRes] = await Promise.allSettled([
         getAdminAnalyticsUsers(),
         getAdminAnalyticsContent(),
         getAdminAnalyticsPopularContent(),
@@ -44,13 +49,13 @@ const AdminAnalytics = () => {
         getAdminAnalyticsActivities()
       ]);
       
-      setUsers(usersRes.data);
-      setContent(contentRes.data);
-      setPopularContent(popRes.data);
-      setLearning(learnRes.data);
-      setActivities(actRes.data);
+      if (usersRes.status === 'fulfilled') setUsers(usersRes.value.data);
+      if (contentRes.status === 'fulfilled') setContent(contentRes.value.data);
+      if (popRes.status === 'fulfilled') setPopularContent(popRes.value.data);
+      if (learnRes.status === 'fulfilled') setLearning(learnRes.value.data);
+      if (actRes.status === 'fulfilled') setActivities(actRes.value.data);
     } catch (err) {
-      console.error(err);
+      console.log(err);
       setError("Analytics are temporarily unavailable.");
     } finally {
       setIsLoading(false);
@@ -66,10 +71,16 @@ const AdminAnalytics = () => {
     );
   }
 
-  if (error) {
+  if (error && !summary && !health) {
     return (
-      <div className="p-8 text-center text-red-500 font-medium">
-        {error}
+      <div className="p-8 text-center text-red-500 font-medium space-y-4">
+        <p>{error}</p>
+        <button 
+          onClick={fetchAnalytics} 
+          className="inline-flex items-center text-sm px-4 py-2 bg-neutral-100 text-neutral-700 rounded-md hover:bg-neutral-200 transition"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" /> Try Again
+        </button>
       </div>
     );
   }
@@ -217,7 +228,7 @@ const AdminAnalytics = () => {
                 {popularContent.popular_objects.map((obj, idx) => (
                   <tr key={obj.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">#{idx + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{obj.title}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{obj.name || obj.title}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-neutral-700">{obj.views}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-neutral-500">{obj.bookmarks}</td>
                   </tr>

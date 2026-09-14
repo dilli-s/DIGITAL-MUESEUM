@@ -14,10 +14,8 @@ const Navbar = () => {
   };
 
   const navLinks = [
-    { name: 'Scan QR', path: '/' },
-    { name: 'Home', path: '/home' },
+    { name: 'Home', path: '/' },
     { name: 'Museums', path: '/museums' },
-    { name: 'Physical Museum', path: '/physical' },
     { name: 'Assistant', path: '/assistant' },
   ];
 

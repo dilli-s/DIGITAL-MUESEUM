@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Monitor, Smartphone, X } from 'lucide-react';
+import { Monitor, Compass, X } from 'lucide-react';
 
 const FloatingMuseumAccess = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -38,7 +38,7 @@ const FloatingMuseumAccess = () => {
         </div>
 
         <Link 
-          to="/museum/1" 
+          to="/museums" 
           className="group/btn flex items-center gap-4 bg-neutral-50 hover:bg-neutral-900 text-neutral-900 hover:text-white px-5 py-4 rounded-2xl transition-all duration-300 border border-neutral-100 hover:border-transparent hover:shadow-xl transform hover:-translate-y-1"
         >
           <div className="bg-white group-hover/btn:bg-neutral-800 p-3 rounded-xl shadow-sm transition-colors">
@@ -51,15 +51,15 @@ const FloatingMuseumAccess = () => {
         </Link>
         
         <Link 
-          to="/physical" 
+          to="/search" 
           className="group/btn flex items-center gap-4 bg-neutral-50 hover:bg-neutral-900 text-neutral-900 hover:text-white px-5 py-4 rounded-2xl transition-all duration-300 border border-neutral-100 hover:border-transparent hover:shadow-xl transform hover:-translate-y-1"
         >
           <div className="bg-white group-hover/btn:bg-neutral-800 p-3 rounded-xl shadow-sm transition-colors">
-            <Smartphone className="w-6 h-6 text-neutral-700 group-hover/btn:text-neutral-100" />
+            <Compass className="w-6 h-6 text-neutral-700 group-hover/btn:text-neutral-100" />
           </div>
           <div className="flex flex-col">
-            <span className="text-base font-bold leading-tight mb-1">Physical Museum</span>
-            <span className="text-sm text-neutral-500 group-hover/btn:text-neutral-300 leading-tight">Interactive on-site guide</span>
+            <span className="text-base font-bold leading-tight mb-1">Explore & Search</span>
+            <span className="text-sm text-neutral-500 group-hover/btn:text-neutral-300 leading-tight">Find objects and artifacts</span>
           </div>
         </Link>
       </div>

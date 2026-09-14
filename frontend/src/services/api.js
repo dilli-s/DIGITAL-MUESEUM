@@ -449,6 +449,15 @@ export const getRecommendations = async (limit = 10) => {
   }
 };
 
+export const getObjectRecommendations = async (objectId, limit = 8) => {
+  try {
+    const response = await apiClient.get('/recommendations', { params: { object_id: objectId, limit } });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const getMuseums = async (params = {}) => {
   try {
     const response = await apiClient.get('/museums', { params });
@@ -460,6 +469,10 @@ export const getMuseums = async (params = {}) => {
   } catch (error) {
     throw error;
   }
+};
+
+export const getMuseumDetails = async (id) => {
+  return getMuseum(id);
 };
 
 export const getMuseum = async (id) => {

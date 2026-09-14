@@ -51,9 +51,7 @@ def create_story():
             title=data['title'],
             content=data.get('content'),
             object_id=data['object_id'],
-            author=data.get('author'),
-            theme=data.get('theme'),
-            image_url=data.get('image_url')
+            image=data.get('image_url')
         )
         db.session.add(story)
         db.session.commit()
@@ -79,10 +77,12 @@ def update_story(story_id):
             if not obj:
                 return jsonify({"error": {"code": "NOT_FOUND", "message": "Object does not exist."}}), 404
                 
-        allowed_fields = ['title', 'content', 'object_id', 'author', 'theme', 'image_url']
+        allowed_fields = ['title', 'content', 'object_id']
         for field in allowed_fields:
             if field in data:
                 setattr(story, field, data[field])
+        if 'image_url' in data:
+            story.image = data['image_url']
                 
         db.session.commit()
         return jsonify({

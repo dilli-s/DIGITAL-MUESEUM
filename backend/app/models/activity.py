@@ -1,8 +1,9 @@
 from app.extensions import db
 from datetime import datetime, timezone
 from sqlalchemy.types import JSON
+from app.models.base import BaseModel
 
-class Activity(db.Model):
+class Activity(BaseModel):
     __tablename__ = 'activities'
 
     id = db.Column(db.Integer, primary_key=True)

@@ -1,7 +1,14 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[1] / '.env')
+load_dotenv(Path(__file__).with_name('.env'))
+if not os.getenv('DATABASE_URL'):
+    load_dotenv(
+        Path(__file__).resolve().parents[2]
+        / 'flask-mapping-service' / 'app' / '.env'
+    )
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')

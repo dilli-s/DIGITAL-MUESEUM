@@ -32,6 +32,7 @@ def create_app(config_class=Config):
         
         return response
 
+    # pyrefly: ignore [bad-specialization]
     @app.errorhandler(Exception)
     def handle_exception(e):
         from werkzeug.exceptions import HTTPException

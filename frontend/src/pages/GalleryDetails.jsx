@@ -1,8 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { getMuseum, getGallery, getGalleries, getObjects } from '../services/api';
+import { getNodes } from '../services/mapApi';
 import ObjectCard from '../components/object/ObjectCard';
-import { ChevronRight, ArrowLeft, ArrowRight, LayoutDashboard, RefreshCw } from 'lucide-react';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { ChevronRight, ArrowLeft, ArrowRight, LayoutDashboard, RefreshCw, MapPin, CheckCircle, Navigation } from 'lucide-react';
+
+const schematicMapStyle = {
+  version: 8,
+  sources: {},
+  layers: [
+    {
+      id: 'background',
+      type: 'background',
+      paint: {
+        'background-color': '#f8fafc'
+      }
+    }
+  ]
+};
+
+const getPolygonCentroid = (points) => {
+  if (!points || points.length === 0) return null;
+  let sumLat = 0, sumLng = 0;
+  points.forEach(p => { sumLat += p.lat; sumLng += p.lng; });
+  return { lat: sumLat / points.length, lng: sumLng / points.length };
+};
+
+const isPointInPolygon = (lat, lng, polygon) => {
+  if (!polygon || polygon.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    let xi = polygon[i].lat, yi = polygon[i].lng;
+    let xj = polygon[j].lat, yj = polygon[j].lng;
+    let intersect = ((yi > lng) !== (yj > lng)) &&
+        (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
 
 const GalleryDetails = () => {
   const { museumId, galleryId } = useParams();
@@ -11,10 +49,12 @@ const GalleryDetails = () => {
   const [gallery, setGallery] = useState(null);
   const [galleryObjects, setGalleryObjects] = useState([]);
   const [museumGalleries, setMuseumGalleries] = useState([]);
+  const [nodes, setNodes] = useState([]);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [mapViewState, setMapViewState] = useState({ latitude: 13.073226, longitude: 80.257045, zoom: 18 });
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -22,11 +62,12 @@ const GalleryDetails = () => {
     setNotFound(false);
     
     try {
-      const [m, g, gs, objs] = await Promise.all([
+      const [m, g, gs, objs, nds] = await Promise.all([
         getMuseum(museumId),
         getGallery(galleryId),
         getGalleries({ museum_id: museumId, per_page: 50 }),
-        getObjects({ gallery_id: galleryId, per_page: 50 })
+        getObjects({ gallery_id: galleryId, per_page: 50 }),
+        getNodes().catch(() => ({ data: [] }))
       ]);
       
       // Verify museum match
@@ -37,6 +78,17 @@ const GalleryDetails = () => {
         setGallery(g);
         setMuseumGalleries(gs.data || []);
         setGalleryObjects(objs.data || []);
+        setNodes(nds.data || []);
+
+        // Compute map center from room centroid or gallery position
+        if (g.boundary_polygon && g.boundary_polygon.length >= 3) {
+          const center = getPolygonCentroid(g.boundary_polygon);
+          if (center) {
+            setMapViewState(prev => ({ ...prev, latitude: center.lat, longitude: center.lng, zoom: 18.5 }));
+          }
+        } else if (m && m.latitude && m.longitude) {
+          setMapViewState(prev => ({ ...prev, latitude: parseFloat(m.latitude), longitude: parseFloat(m.longitude), zoom: 18 }));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -103,6 +155,26 @@ const GalleryDetails = () => {
       </div>
     );
   }
+
+  const roomGeoJSON = useMemo(() => {
+    if (!museumGalleries || museumGalleries.length === 0) return { type: 'FeatureCollection', features: [] };
+    const features = museumGalleries
+      .filter(g => g.boundary_polygon && g.boundary_polygon.length >= 3)
+      .map(g => {
+        const coords = g.boundary_polygon.map(p => [p.lng, p.lat]);
+        coords.push(coords[0]);
+        const isCurrent = String(g.id) === String(galleryId);
+        return {
+          type: 'Feature',
+          properties: { id: g.id, name: g.name, isCurrent },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [coords]
+          }
+        };
+      });
+    return { type: 'FeatureCollection', features };
+  }, [museumGalleries, galleryId]);
 
   // Gallery Navigation
   const currentIndex = museumGalleries.findIndex(g => String(g.id) === String(galleryId));
@@ -192,6 +264,112 @@ const GalleryDetails = () => {
           </dl>
         </div>
       </div>
+
+      {/* Requirement 1 & 2: Room Auto-Render Schematic View */}
+      <section className="mb-16">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-neutral-900">Floor Plan & Artifact Locations</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">Auto-rendered room boundaries and exhibit placement (Tile-Free Schematic View)</p>
+          </div>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <CheckCircle className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+            Auto-Rendered from DB Coordinates
+          </span>
+        </div>
+
+        <div className="relative w-full h-[400px] rounded-2xl border border-neutral-300 overflow-hidden shadow-sm bg-slate-50">
+          <ErrorBoundary>
+            <Map
+              {...mapViewState}
+              onMove={evt => setMapViewState(evt.viewState)}
+              mapStyle={schematicMapStyle}
+              style={{ width: '100%', height: '100%' }}
+            >
+              {/* Auto-Rendered Room Polygons */}
+              {roomGeoJSON.features.length > 0 && (
+                <Source id="gallery-rooms" type="geojson" data={roomGeoJSON}>
+                  <Layer 
+                    id="gallery-rooms-fill" 
+                    type="fill" 
+                    paint={{ 
+                      'fill-color': ['case', ['get', 'isCurrent'], '#cbd5e1', '#e2e8f0'],
+                      'fill-opacity': 0.8
+                    }} 
+                  />
+                  <Layer 
+                    id="gallery-rooms-line" 
+                    type="line" 
+                    paint={{ 
+                      'line-color': ['case', ['get', 'isCurrent'], '#1e293b', '#475569'],
+                      'line-width': ['case', ['get', 'isCurrent'], 2.5, 1.5]
+                    }} 
+                  />
+                </Source>
+              )}
+
+              {/* Room Centroid Labels */}
+              {museumGalleries
+                .filter(g => g.boundary_polygon && g.boundary_polygon.length >= 3)
+                .map(g => {
+                  const center = getPolygonCentroid(g.boundary_polygon);
+                  if (!center) return null;
+                  const isCurrent = String(g.id) === String(galleryId);
+                  return (
+                    <Marker key={`room-label-${g.id}`} latitude={center.lat} longitude={center.lng} anchor="center">
+                      <div className={`text-xs font-bold px-2 py-0.5 rounded border shadow-sm pointer-events-none whitespace-nowrap ${isCurrent ? 'bg-neutral-900 text-white border-neutral-900 ring-2 ring-neutral-400' : 'bg-white/90 text-slate-700 border-slate-300'}`}>
+                        {g.name}
+                      </div>
+                    </Marker>
+                  );
+                })}
+
+              {/* Entrance & Exit Markers */}
+              {nodes
+                .filter(n => n.latitude && n.longitude)
+                .map(n => {
+                  const nodeTypes = (n.node_type || '').split(',').map(s => s.trim());
+                  if (nodeTypes.includes('entrance')) {
+                    return (
+                      <Marker key={`node-${n.id}`} latitude={parseFloat(n.latitude)} longitude={parseFloat(n.longitude)} anchor="center">
+                        <div className="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full shadow-md border border-white tracking-wide pointer-events-none">
+                          ENTRANCE
+                        </div>
+                      </Marker>
+                    );
+                  }
+                  if (nodeTypes.includes('exit')) {
+                    return (
+                      <Marker key={`node-${n.id}`} latitude={parseFloat(n.latitude)} longitude={parseFloat(n.longitude)} anchor="center">
+                        <div className="bg-red-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full shadow-md border border-white tracking-wide pointer-events-none">
+                          EXIT
+                        </div>
+                      </Marker>
+                    );
+                  }
+                  return null;
+                })}
+
+              {/* Artifact Points Inside Room (Placed by precise Lat/Lng) */}
+              {galleryObjects
+                .filter(o => o.latitude !== null && o.latitude !== undefined && o.latitude !== '' &&
+                             o.longitude !== null && o.longitude !== undefined && o.longitude !== '')
+                .map(obj => (
+                  <Marker key={`object-marker-${obj.id}`} latitude={parseFloat(obj.latitude)} longitude={parseFloat(obj.longitude)} anchor="center">
+                    <div className="group relative flex items-center justify-center">
+                      <div className="w-5 h-5 rounded-full bg-amber-600 border-2 border-white shadow-md flex items-center justify-center text-[10px] text-white font-bold cursor-pointer hover:scale-125 transition-transform">
+                        <MapPin className="w-3 h-3 text-white" />
+                      </div>
+                      <div className="absolute bottom-full mb-1 hidden group-hover:block bg-neutral-900 text-white text-[11px] font-semibold px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
+                        {obj.name || obj.title}
+                      </div>
+                    </div>
+                  </Marker>
+                ))}
+            </Map>
+          </ErrorBoundary>
+        </div>
+      </section>
 
       {/* Object Preview */}
       <section className="mb-16">

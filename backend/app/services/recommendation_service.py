@@ -3,6 +3,37 @@ from app.models.bookmark import Bookmark
 from app.models.history import UserHistory
 from app.extensions import db
 
+
+def get_recommendations_for_object(object_id, limit=8):
+    """Build the Explore More chain from the selected object's context."""
+    source = db.session.get(MuseumObject, object_id)
+    if not source:
+        return None
+
+    related_query = MuseumObject.query.filter(MuseumObject.id != source.id)
+    if source.category:
+        related_query = related_query.filter(MuseumObject.category == source.category)
+    else:
+        related_query = related_query.filter(MuseumObject.museum_id == source.museum_id)
+
+    related_objects = related_query.limit(limit).all()
+    return {
+        "object": {"id": source.id, "name": source.name, "category": source.category},
+        "related_objects": [
+            {"id": obj.id, "name": obj.name, "image": obj.image, "category": obj.category, "period": obj.period}
+            for obj in related_objects
+        ],
+        "themes": ([{"id": source.category, "name": source.category}] if source.category else []),
+        "stories": [
+            {"id": story.id, "title": story.title, "summary": story.summary, "image": story.image}
+            for story in source.stories
+        ],
+        "learning": [
+            {"id": item.id, "title": item.title, "description": item.description, "type": item.type}
+            for item in source.learning_resources
+        ],
+    }
+
 def get_recommendations_for_user(user_id, limit=10):
     """
     Simple recommendation engine.

@@ -43,7 +43,7 @@ const AdminActivities = () => {
       const res = await getAdminActivities();
       setActivities(res.data || []);
     } catch (err) {
-      console.error(err);
+      console.log(err);
     }
   };
 
@@ -109,7 +109,7 @@ const AdminActivities = () => {
       setDeleteConfirm(null);
       fetchActivities();
     } catch (err) {
-      alert(err.response?.data?.error?.message || 'Failed to delete activity.');
+      console.log(err.response?.data?.error?.message || 'Failed to delete activity.');
       setDeleteConfirm(null);
     }
   };
