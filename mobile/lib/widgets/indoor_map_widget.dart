@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -42,12 +41,10 @@ class IndoorMapWidget extends StatefulWidget {
   State<IndoorMapWidget> createState() => _IndoorMapWidgetState();
 }
 
-enum MapDisplayMode { floorPlan, streetMap }
+enum MapDisplayMode { floorPlan, schematicMap }
 
 class _IndoorMapWidgetState extends State<IndoorMapWidget>
     with TickerProviderStateMixin {
-  MapLibreMapController? _mapController;
-  bool _isMapReady = false;
   MapDisplayMode _displayMode = MapDisplayMode.floorPlan;
   final TransformationController _transformController = TransformationController();
 
@@ -65,34 +62,11 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
   double? _targetHeading;
   int _lastHeadingUpdateTime = 0;
 
-  static const String osmMapStyleJson = '''{
-    "version": 8,
-    "sources": {
-      "osm-tiles": {
-        "type": "raster",
-        "tiles": [
-          "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        ],
-        "tileSize": 256,
-        "attribution": "© OpenStreetMap contributors"
-      }
-    },
-    "layers": [
-      {
-        "id": "osm-tiles-layer",
-        "type": "raster",
-        "source": "osm-tiles",
-        "minzoom": 0,
-        "maxzoom": 22
-      }
-    ]
-  }''';
-
   @override
   void initState() {
     super.initState();
     if (widget.floorPlan.imageUrl.isEmpty) {
-      _displayMode = MapDisplayMode.streetMap;
+      _displayMode = MapDisplayMode.schematicMap;
     }
 
     _positionAnimController = AnimationController(
@@ -239,510 +213,56 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
         _lastHeadingUpdateTime = 0;
       }
     }
-
-    if (_isMapReady && _displayMode == MapDisplayMode.streetMap) {
-      bool staticChanged = oldWidget.galleries != widget.galleries ||
-          oldWidget.routePath != widget.routePath ||
-          oldWidget.allNodes != widget.allNodes ||
-          oldWidget.currentRoomId != widget.currentRoomId ||
-          oldWidget.destinationNode != widget.destinationNode;
-
-      if (staticChanged) {
-        _updateStaticSources();
-      }
-
-      if (widget.currentPosition != oldWidget.currentPosition) {
-        _updateDynamicSources();
-        // Only auto-center if navigating (route started)
-        if (widget.routePath.isNotEmpty) {
-          _animateToCurrentPosition();
-        }
-      }
-    }
-  }
-
-  Future<void> _animateToCurrentPosition() async {
-    if (widget.currentPosition?.latitude == null ||
-        widget.currentPosition?.longitude == null) {
-      return;
-    }
-    if (_mapController != null) {
-      double bearing = 0.0;
-      if (widget.routePath.isNotEmpty) {
-        bearing = _animatedHeading ?? widget.currentPosition!.heading;
-      }
-      _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(
-              widget.currentPosition!.latitude!,
-              widget.currentPosition!.longitude!,
-            ),
-            zoom: 21,
-            bearing: bearing,
-          ),
-        ),
-      );
-    }
-  }
-
-  void _onMapCreated(MapLibreMapController controller) {
-    _mapController = controller;
-    controller.onFeatureTapped.add(_onFeatureTapped);
-    if (widget.onMapCreated != null) {
-      widget.onMapCreated!(controller);
-    }
-  }
-
-  void _onStyleLoaded() {
-    setState(() {
-      _isMapReady = true;
-    });
-    _addSourcesAndLayers();
-  }
-
-  void _onFeatureTapped(
-    math.Point<double> point,
-    LatLng coordinates,
-    String id,
-    String layerId,
-    Annotation? annotation,
-  ) async {
-    if (_mapController == null) return;
-    List<dynamic> features = await _mapController!.queryRenderedFeatures(
-      point,
-      ['nodes-layer'],
-      null,
-    );
-    if (features.isNotEmpty) {
-      final props = features.first['properties'];
-      if (props != null && props['id'] != null) {
-        final tappedNodeId = props['id'];
-        try {
-          final node = widget.allNodes.firstWhere((n) => n.id == tappedNodeId);
-          widget.onNodeTap(node);
-        } catch (_) {}
-      }
-    }
-  }
-
-  Future<void> _addSourcesAndLayers() async {
-    if (_mapController == null) return;
-
-    await _mapController!.addGeoJsonSource(
-      'galleries-source',
-      {"type": "FeatureCollection", "features": []},
-    );
-    await _mapController!.addGeoJsonSource(
-      'route-source',
-      {"type": "FeatureCollection", "features": []},
-    );
-    await _mapController!.addGeoJsonSource(
-      'nodes-source',
-      {"type": "FeatureCollection", "features": []},
-    );
-    await _mapController!.addGeoJsonSource(
-      'position-cone-source',
-      {"type": "FeatureCollection", "features": []},
-    );
-    await _mapController!.addGeoJsonSource(
-      'position-source',
-      {"type": "FeatureCollection", "features": []},
-    );
-
-    await _mapController!.addFillLayer(
-      'galleries-source',
-      'galleries-fill-neutral',
-      const FillLayerProperties(
-        fillColor: '#3B82F6',
-        fillOpacity: 0.15,
-      ),
-      filter: ['all', ['!=', 'isDestination', true], ['!=', 'isActive', true]],
-    );
-
-    await _mapController!.addFillLayer(
-      'galleries-source',
-      'galleries-fill-active',
-      const FillLayerProperties(
-        fillColor: '#10B981',
-        fillOpacity: 0.30,
-      ),
-      filter: ['==', 'isActive', true],
-    );
-
-    await _mapController!.addFillLayer(
-      'galleries-source',
-      'galleries-fill-destination',
-      const FillLayerProperties(
-        fillColor: '#8B5CF6',
-        fillOpacity: 0.35,
-      ),
-      filter: ['==', 'isDestination', true],
-    );
-
-    await _mapController!.addLineLayer(
-      'galleries-source',
-      'galleries-line-neutral',
-      const LineLayerProperties(
-        lineColor: '#64748B',
-        lineWidth: 1.5,
-      ),
-      filter: ['all', ['!=', 'isDestination', true], ['!=', 'isActive', true]],
-    );
-
-    await _mapController!.addLineLayer(
-      'galleries-source',
-      'galleries-line-active',
-      const LineLayerProperties(
-        lineColor: '#10B981',
-        lineWidth: 2.5,
-      ),
-      filter: ['==', 'isActive', true],
-    );
-
-    await _mapController!.addLineLayer(
-      'galleries-source',
-      'galleries-line-destination',
-      const LineLayerProperties(
-        lineColor: '#8B5CF6',
-        lineWidth: 2.5,
-      ),
-      filter: ['==', 'isDestination', true],
-    );
-
-    await _mapController!.addSymbolLayer(
-      'galleries-source',
-      'galleries-labels',
-      const SymbolLayerProperties(
-        textField: ['get', 'name'],
-        textSize: 11,
-        textColor: '#1E293B',
-        textHaloColor: '#FFFFFF',
-        textHaloWidth: 2.0,
-        textMaxWidth: 10,
-      ),
-    );
-
-    await _mapController!.addLineLayer(
-      'route-source',
-      'route-layer',
-      const LineLayerProperties(
-        lineColor: '#4F46E5',
-        lineWidth: 5,
-        lineCap: 'round',
-        lineJoin: 'round',
-      ),
-    );
-
-    await _mapController!.addCircleLayer(
-      'nodes-source',
-      'nodes-layer',
-      const CircleLayerProperties(
-        circleColor: '#64748B',
-        circleRadius: 6,
-        circleStrokeWidth: 2,
-        circleStrokeColor: '#FFFFFF',
-      ),
-    );
-
-    await _mapController!.addCircleLayer(
-      'nodes-source',
-      'entrance-layer',
-      const CircleLayerProperties(
-        circleColor: '#10B981',
-        circleRadius: 8,
-        circleStrokeWidth: 2,
-        circleStrokeColor: '#FFFFFF',
-      ),
-      filter: ['==', 'isEntrance', true],
-    );
-
-    await _mapController!.addCircleLayer(
-      'nodes-source',
-      'exit-layer',
-      const CircleLayerProperties(
-        circleColor: '#EF4444',
-        circleRadius: 8,
-        circleStrokeWidth: 2,
-        circleStrokeColor: '#FFFFFF',
-      ),
-      filter: ['==', 'isExit', true],
-    );
-
-    await _mapController!.addCircleLayer(
-      'nodes-source',
-      'destination-layer',
-      const CircleLayerProperties(
-        circleColor: '#EC4899',
-        circleRadius: 10,
-        circleStrokeWidth: 2.5,
-        circleStrokeColor: '#FFFFFF',
-      ),
-      filter: ['==', 'isDestination', true],
-    );
-
-    await _mapController!.addFillLayer(
-      'position-cone-source',
-      'position-cone-layer',
-      const FillLayerProperties(
-        fillColor: '#3B82F6',
-        fillOpacity: 0.35,
-      ),
-    );
-
-    await _mapController!.addCircleLayer(
-      'position-source',
-      'position-layer',
-      const CircleLayerProperties(
-        circleColor: '#2563EB',
-        circleRadius: 8,
-        circleStrokeWidth: 3,
-        circleStrokeColor: '#FFFFFF',
-      ),
-    );
-
-    _updateStaticSources();
-    _updateDynamicSources();
-  }
-
-  void _updateStaticSources() async {
-    if (_mapController == null || !_isMapReady) return;
-
-    Gallery? activeRoom;
-    if (widget.currentRoomId != null) {
-      try {
-        activeRoom = widget.galleries.firstWhere((g) => g.id == widget.currentRoomId);
-      } catch (_) {}
-    }
-
-    MapNode? targetDestNode = widget.destinationNode;
-    if (targetDestNode == null && widget.routePath.isNotEmpty) {
-      targetDestNode = widget.routePath.last;
-    }
-
-    List<Map<String, dynamic>> galleryFeatures = [];
-    for (var g in widget.galleries) {
-      if (g.boundaryPolygon != null && g.boundaryPolygon!.length >= 3) {
-        bool isActiveRoom = activeRoom != null && activeRoom.id == g.id;
-        bool isDestRoom = false;
-        if (targetDestNode != null &&
-            targetDestNode.latitude != null &&
-            targetDestNode.longitude != null) {
-          isDestRoom = NavigationMath.isPointInPolygon(
-            targetDestNode.latitude!,
-            targetDestNode.longitude!,
-            g.boundaryPolygon!,
-          );
-        }
-
-        List<List<double>> coords =
-            g.boundaryPolygon!.map((p) => [p['lng']!, p['lat']!]).toList();
-        coords.add(coords.first);
-        galleryFeatures.add({
-          "type": "Feature",
-          "properties": {
-            "id": g.id,
-            "name": g.name,
-            "isDestination": isDestRoom,
-            "isActive": isActiveRoom,
-          },
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [coords]
-          }
-        });
-      }
-    }
-    await _mapController!.setGeoJsonSource('galleries-source', {
-      "type": "FeatureCollection",
-      "features": galleryFeatures
-    });
-
-    List<List<double>> routeCoords = [];
-    if (widget.currentPosition != null &&
-        widget.currentPosition!.latitude != null &&
-        widget.currentPosition!.longitude != null &&
-        widget.currentPosition!.floor == widget.floorPlan.floorNumber) {
-      routeCoords.add([
-        widget.currentPosition!.longitude!,
-        widget.currentPosition!.latitude!,
-      ]);
-    }
-    for (var node in widget.routePath) {
-      if (node.latitude != null &&
-          node.longitude != null &&
-          node.floor == widget.floorPlan.floorNumber) {
-        routeCoords.add([node.longitude!, node.latitude!]);
-      }
-    }
-    List<Map<String, dynamic>> routeFeatures = [];
-    if (routeCoords.length >= 2) {
-      routeFeatures.add({
-        "type": "Feature",
-        "properties": {},
-        "geometry": {
-          "type": "LineString",
-          "coordinates": routeCoords,
-        }
-      });
-    }
-    await _mapController!.setGeoJsonSource('route-source', {
-      "type": "FeatureCollection",
-      "features": routeFeatures
-    });
-
-    List<Map<String, dynamic>> nodeFeatures = [];
-    for (var node in widget.allNodes) {
-      if (node.latitude == null || node.longitude == null) continue;
-      if (node.floor != widget.floorPlan.floorNumber) continue;
-
-      final isDest = targetDestNode != null && targetDestNode.id == node.id;
-      final isEntrance = node.nodeType.contains('entrance');
-      final isExit = node.nodeType.contains('exit');
-
-      nodeFeatures.add({
-        "type": "Feature",
-        "properties": {
-          "id": node.id,
-          "name": node.name,
-          "isDestination": isDest,
-          "isEntrance": isEntrance,
-          "isExit": isExit,
-        },
-        "geometry": {
-          "type": "Point",
-          "coordinates": [node.longitude!, node.latitude!]
-        }
-      });
-    }
-    await _mapController!.setGeoJsonSource('nodes-source', {
-      "type": "FeatureCollection",
-      "features": nodeFeatures
-    });
-  }
-
-  void _updateDynamicSources() async {
-    if (_mapController == null || !_isMapReady) return;
-
-    List<Map<String, dynamic>> coneFeatures = [];
-    if (widget.currentPosition != null &&
-        widget.currentPosition!.latitude != null &&
-        widget.currentPosition!.longitude != null) {
-      double lat = widget.currentPosition!.latitude!;
-      double lng = widget.currentPosition!.longitude!;
-      double heading = _animatedHeading ?? widget.currentPosition!.heading;
-
-      const double radiusMeters = 7.5;
-      const double fovDegrees = 60.0;
-      const int steps = 12;
-
-      double startAngle = heading - (fovDegrees / 2.0);
-      double stepSize = fovDegrees / steps;
-
-      List<List<double>> coneCoords = [];
-      coneCoords.add([lng, lat]);
-
-      for (int i = 0; i <= steps; i++) {
-        double angle = startAngle + (i * stepSize);
-        double rad = angle * (math.pi / 180.0);
-        double dx = radiusMeters * math.sin(rad);
-        double dy = radiusMeters * math.cos(rad);
-        double dLat = dy / 111320.0;
-        double dLng = dx / (111320.0 * math.cos(lat * (math.pi / 180.0)));
-        coneCoords.add([lng + dLng, lat + dLat]);
-      }
-      coneCoords.add([lng, lat]);
-
-      coneFeatures.add({
-        "type": "Feature",
-        "properties": {},
-        "geometry": {
-          "type": "Polygon",
-          "coordinates": [coneCoords]
-        }
-      });
-    }
-    await _mapController!.setGeoJsonSource('position-cone-source', {
-      "type": "FeatureCollection",
-      "features": coneFeatures
-    });
-
-    List<Map<String, dynamic>> posFeatures = [];
-    if (widget.currentPosition != null &&
-        widget.currentPosition!.latitude != null &&
-        widget.currentPosition!.longitude != null) {
-      posFeatures.add({
-        "type": "Feature",
-        "properties": {"heading": _animatedHeading ?? widget.currentPosition!.heading},
-        "geometry": {
-          "type": "Point",
-          "coordinates": [
-            widget.currentPosition!.longitude!,
-            widget.currentPosition!.latitude!
-          ]
-        }
-      });
-    }
-    await _mapController!.setGeoJsonSource('position-source', {
-      "type": "FeatureCollection",
-      "features": posFeatures
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasFloorPlanImage = widget.floorPlan.imageUrl.isNotEmpty;
-
     return Stack(
       children: [
-        if (_displayMode == MapDisplayMode.floorPlan && hasFloorPlanImage)
-          _buildFloorPlanCanvas()
-        else
-          _buildMapLibreMap(),
+        _buildFloorPlanCanvas(),
 
-        if (hasFloorPlanImage)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildModeToggleButton(
-                    title: 'Floor Plan',
-                    icon: Icons.layers_rounded,
-                    isSelected: _displayMode == MapDisplayMode.floorPlan,
-                    onTap: () {
-                      setState(() {
-                        _displayMode = MapDisplayMode.floorPlan;
-                      });
-                    },
-                  ),
-                  _buildModeToggleButton(
-                    title: 'Map',
-                    icon: Icons.map_rounded,
-                    isSelected: _displayMode == MapDisplayMode.streetMap,
-                    onTap: () {
-                      setState(() {
-                        _displayMode = MapDisplayMode.streetMap;
-                      });
-                    },
-                  ),
-                ],
-              ),
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildModeToggleButton(
+                  title: 'Floor Plan',
+                  icon: Icons.layers_rounded,
+                  isSelected: _displayMode == MapDisplayMode.floorPlan,
+                  onTap: () {
+                    setState(() {
+                      _displayMode = MapDisplayMode.floorPlan;
+                    });
+                  },
+                ),
+                _buildModeToggleButton(
+                  title: 'Clear Map',
+                  icon: Icons.map_rounded,
+                  isSelected: _displayMode == MapDisplayMode.schematicMap,
+                  onTap: () {
+                    setState(() {
+                      _displayMode = MapDisplayMode.schematicMap;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
+        ),
       ],
     );
   }
@@ -790,6 +310,8 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
     final double heightPx = widget.floorPlan.heightPx > 0 ? widget.floorPlan.heightPx : 400;
     final double aspectRatio = widthPx / heightPx;
 
+    final bool isSchematic = _displayMode == MapDisplayMode.schematicMap;
+
     return Container(
       color: const Color(0xFFF1F5F9),
       child: LayoutBuilder(
@@ -812,7 +334,7 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
                 width: displayW,
                 height: displayH,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isSchematic ? const Color(0xFFF8FAFC) : Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
@@ -826,29 +348,26 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
                   borderRadius: BorderRadius.circular(8),
                   child: Stack(
                     children: [
-                      Positioned.fill(
-                        child: CachedNetworkImage(
-                          key: ValueKey('${widget.floorPlan.id}_$imageUrl'),
-                          imageUrl: imageUrl,
-                          fit: BoxFit.fill,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          errorWidget: (context, url, error) => Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.broken_image_rounded, size: 36, color: Colors.grey.shade400),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Floor plan unavailable',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                                ),
-                              ],
+                      if (!isSchematic)
+                        Positioned.fill(
+                          child: CachedNetworkImage(
+                            key: ValueKey('${widget.floorPlan.id}_$imageUrl'),
+                            imageUrl: imageUrl,
+                            fit: BoxFit.fill,
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: const Color(0xFFF8FAFC),
                             ),
                           ),
+                        )
+                      else
+                        Positioned.fill(
+                          child: Container(
+                            color: const Color(0xFFF8FAFC),
+                          ),
                         ),
-                      ),
                       Positioned.fill(
                         child: GestureDetector(
                           onLongPressStart: (details) {
@@ -905,6 +424,7 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
                                   destinationNode: widget.destinationNode,
                                   currentPosition: displayPosition,
                                   visitedNodeIds: widget.visitedNodeIds,
+                                  isSchematic: isSchematic,
                                 ),
                               );
                             },
@@ -921,49 +441,6 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
       ),
     );
   }
-
-  Widget _buildMapLibreMap() {
-    CameraPosition initialPos = const CameraPosition(
-      target: LatLng(0, 0),
-      zoom: 18,
-    );
-
-    if (widget.currentPosition?.latitude != null &&
-        widget.currentPosition?.longitude != null) {
-      initialPos = CameraPosition(
-        target: LatLng(
-          widget.currentPosition!.latitude!,
-          widget.currentPosition!.longitude!,
-        ),
-        zoom: 20,
-      );
-    } else if (widget.allNodes.isNotEmpty) {
-      try {
-        var firstNode = widget.allNodes.firstWhere(
-          (n) =>
-              n.latitude != null &&
-              n.longitude != null &&
-              n.floor == widget.floorPlan.floorNumber,
-        );
-        initialPos = CameraPosition(
-          target: LatLng(firstNode.latitude!, firstNode.longitude!),
-          zoom: 19,
-        );
-      } catch (_) {}
-    }
-
-    return MapLibreMap(
-      initialCameraPosition: initialPos,
-      onMapCreated: _onMapCreated,
-      onStyleLoadedCallback: _onStyleLoaded,
-      styleString: osmMapStyleJson,
-      myLocationEnabled: false,
-      myLocationRenderMode: MyLocationRenderMode.normal,
-      compassEnabled: false,
-      zoomGesturesEnabled: true,
-      trackCameraPosition: true,
-    );
-  }
 }
 
 class _FloorPlanPainter extends CustomPainter {
@@ -976,6 +453,8 @@ class _FloorPlanPainter extends CustomPainter {
   final PositionState? currentPosition;
   final Set<String> visitedNodeIds;
 
+  final bool isSchematic;
+
   _FloorPlanPainter({
     required this.floorPlan,
     required this.allNodes,
@@ -985,7 +464,37 @@ class _FloorPlanPainter extends CustomPainter {
     this.destinationNode,
     this.currentPosition,
     this.visitedNodeIds = const {},
+    this.isSchematic = false,
   });
+
+  static Color _getGalleryFill(String name, int index) {
+    final lower = name.toLowerCase();
+    if (lower.contains('egypt')) return const Color(0xFFFEF3C7);
+    if (lower.contains('mesopotamia')) return const Color(0xFFFFEDD5);
+    if (lower.contains('khorsabad') || lower.contains('court')) return const Color(0xFFFFE4E6);
+    if (lower.contains('assyria')) return const Color(0xFFEDE9FE);
+    if (lower.contains('persia')) return const Color(0xFFD1FAE5);
+    if (lower.contains('courtyard') || lower.contains('garden')) return const Color(0xFFDCFCE7);
+    if (lower.contains('nubia')) return const Color(0xFFCFFAFE);
+    if (lower.contains('megiddo') || lower.contains('syria') || lower.contains('anatolia')) return const Color(0xFFFED7AA);
+    if (lower.contains('prehistory')) return const Color(0xFFFEF08A);
+    if (lower.contains('store') || lower.contains('suq')) return const Color(0xFFF3E8FF);
+    if (lower.contains('lobby') || lower.contains('reception')) return const Color(0xFFF1F5F9);
+    if (lower.contains('lecture') || lower.contains('breasted')) return const Color(0xFFE0E7FF);
+    if (lower.contains('temp')) return const Color(0xFFFCE7F3);
+
+    const palette = [
+      Color(0xFFFEF3C7),
+      Color(0xFFFFEDD5),
+      Color(0xFFD1FAE5),
+      Color(0xFFEDE9FE),
+      Color(0xFFCFFAFE),
+      Color(0xFFFCE7F3),
+      Color(0xFFDCFCE7),
+      Color(0xFFE0E7FF),
+    ];
+    return palette[index % palette.length];
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -998,6 +507,20 @@ class _FloorPlanPainter extends CustomPainter {
       double nx = (x <= 1.0) ? x : (x / widthPx);
       double ny = (y <= 1.0) ? y : (y / heightPx);
       return Offset(nx * w, ny * h);
+    }
+
+    // Draw subtle architectural blueprint grid in Clear Map mode
+    if (isSchematic) {
+      final gridPaint = Paint()
+        ..color = const Color(0xFFCBD5E1).withValues(alpha: 0.35)
+        ..strokeWidth = 0.5;
+      const double step = 28.0;
+      for (double x = 0; x < w; x += step) {
+        canvas.drawLine(Offset(x, 0), Offset(x, h), gridPaint);
+      }
+      for (double y = 0; y < h; y += step) {
+        canvas.drawLine(Offset(0, y), Offset(w, y), gridPaint);
+      }
     }
 
     // Filter galleries strictly for the active floor plan to prevent cross-floor overlap
@@ -1018,7 +541,8 @@ class _FloorPlanPainter extends CustomPainter {
       return false;
     }).toList();
 
-    for (var g in floorGalleries) {
+    for (int gi = 0; gi < floorGalleries.length; gi++) {
+      final g = floorGalleries[gi];
       if (g.boundaryPolygon != null && g.boundaryPolygon!.length >= 3) {
         final path = Path();
         bool isFirst = true;
@@ -1051,43 +575,90 @@ class _FloorPlanPainter extends CustomPainter {
               g.boundaryPolygon!,
             );
 
-        final fillPaint = Paint()
-          ..style = PaintingStyle.fill
-          ..color = isActive
+        Color fillColor;
+        if (isSchematic) {
+          fillColor = isActive
+              ? const Color(0x6610B981)
+              : (isDest
+                  ? const Color(0x668B5CF6)
+                  : _getGalleryFill(g.name, gi));
+        } else {
+          fillColor = isActive
               ? const Color(0x3310B981)
-              : isDest
+              : (isDest
                   ? const Color(0x338B5CF6)
-                  : const Color(0x153B82F6);
-        canvas.drawPath(path, fillPaint);
+                  : const Color(0x153B82F6));
+        }
+        canvas.drawPath(path, Paint()..style = PaintingStyle.fill..color = fillColor);
 
-        final strokePaint = Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = isActive ? 2.5 : (isDest ? 2.0 : 1.2)
-          ..color = isActive
+        Color wallColor;
+        double wallWidth;
+        if (isSchematic) {
+          wallColor = isActive
               ? const Color(0xFF10B981)
-              : isDest
+              : (isDest
                   ? const Color(0xFF8B5CF6)
-                  : const Color(0xFF64748B);
-        canvas.drawPath(path, strokePaint);
+                  : const Color(0xFF334155));
+          wallWidth = isActive ? 3.5 : (isDest ? 3.0 : 2.5);
+        } else {
+          wallColor = isActive
+              ? const Color(0xFF10B981)
+              : (isDest
+                  ? const Color(0xFF8B5CF6)
+                  : const Color(0xFF64748B));
+          wallWidth = isActive ? 2.5 : (isDest ? 2.0 : 1.2);
+        }
+        canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = wallWidth
+            ..color = wallColor
+            ..strokeJoin = StrokeJoin.round,
+        );
 
         if (ptCount > 0 && g.name.isNotEmpty) {
+          final center = Offset(sumX / ptCount, sumY / ptCount);
           final textPainter = TextPainter(
             text: TextSpan(
               text: g.name,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: isActive || isDest ? FontWeight.bold : FontWeight.w600,
-                color: isDest ? const Color(0xFF6D28D9) : const Color(0xFF1E293B),
-                backgroundColor: const Color(0xB3FFFFFF),
+                fontSize: isSchematic ? 11 : 10,
+                fontWeight: isActive || isDest ? FontWeight.bold : FontWeight.w700,
+                color: isDest
+                    ? const Color(0xFF6D28D9)
+                    : (isActive ? const Color(0xFF065F46) : const Color(0xFF0F172A)),
               ),
             ),
             textDirection: TextDirection.ltr,
           );
           textPainter.layout();
+
+          final badgeRect = RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: center,
+              width: textPainter.width + 14,
+              height: textPainter.height + 7,
+            ),
+            const Radius.circular(6),
+          );
+          canvas.drawRRect(
+            badgeRect,
+            Paint()..color = Colors.white.withValues(alpha: isSchematic ? 0.95 : 0.85),
+          );
+          canvas.drawRRect(
+            badgeRect,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.0
+              ..color = isDest
+                  ? const Color(0xFFC084FC)
+                  : (isActive ? const Color(0xFF34D399) : const Color(0xFFCBD5E1)),
+          );
           textPainter.paint(
             canvas,
-            Offset((sumX / ptCount) - (textPainter.width / 2),
-                (sumY / ptCount) - (textPainter.height / 2)),
+            Offset(center.dx - (textPainter.width / 2),
+                center.dy - (textPainter.height / 2)),
           );
         }
       }
@@ -1178,13 +749,13 @@ class _FloorPlanPainter extends CustomPainter {
         pinColor = const Color(0xFF06B6D4);
         radius = 6.0;
       } else if (node.objectId != null) {
-        pinColor = const Color(0xFFF59E0B);
-        radius = 5.5;
+        pinColor = isSchematic ? const Color(0xFFD97706) : const Color(0xFFF59E0B);
+        radius = isSchematic ? 6.5 : 5.5;
       }
 
       canvas.drawCircle(
         pos,
-        radius + (isVisited ? 1.0 : 1.5),
+        radius + (isVisited ? 1.0 : 2.0),
         Paint()..color = isVisited ? const Color(0x99FFFFFF) : Colors.white,
       );
       canvas.drawCircle(
@@ -1192,6 +763,14 @@ class _FloorPlanPainter extends CustomPainter {
         radius,
         Paint()..color = pinColor,
       );
+
+      if (isSchematic && node.objectId != null && !isVisited) {
+        canvas.drawCircle(
+          pos,
+          2.5,
+          Paint()..color = Colors.white,
+        );
+      }
     }
 
     if (currentPosition != null &&
@@ -1263,6 +842,7 @@ class _FloorPlanPainter extends CustomPainter {
         oldDelegate.currentRoomId != currentRoomId ||
         oldDelegate.destinationNode != destinationNode ||
         oldDelegate.floorPlan != floorPlan ||
-        oldDelegate.visitedNodeIds != visitedNodeIds;
+        oldDelegate.visitedNodeIds != visitedNodeIds ||
+        oldDelegate.isSchematic != isSchematic;
   }
 }
