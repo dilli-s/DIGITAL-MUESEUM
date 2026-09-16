@@ -335,7 +335,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     _checkGPSBounds();
     _loadData();
     _autoPopupCheckTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && isNavigationActive && currentPosition != null) {
+      if (mounted && currentPosition != null) {
         _checkArtifactAutoPopup(currentPosition!);
       }
     });
@@ -540,7 +540,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
               longitude: entranceNode.longitude,
             ),
           );
-          positionService.stopPdr();
+          positionService.startPdr();
           locationService.forceIndoorMode();
         } catch (_) {}
       } else if (entrances.isNotEmpty &&
@@ -564,7 +564,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
             longitude: matchingEntrance.longitude,
           ),
         );
-        positionService.stopPdr();
+        positionService.startPdr();
         locationService.forceIndoorMode();
       }
     }
@@ -677,7 +677,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
             longitude: entranceNode.longitude,
           ),
         );
-        positionService.stopPdr();
+        positionService.startPdr();
         locationService.forceIndoorMode();
       } catch (_) {}
     } else if (entrances.isNotEmpty && currentPosition?.currentNodeId == null) {
@@ -700,7 +700,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
           longitude: matchingEntrance.longitude,
         ),
       );
-      positionService.stopPdr();
+      positionService.startPdr();
       locationService.forceIndoorMode();
     }
   }
@@ -857,8 +857,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
   final int _lastAutoTriggerTime = 0;
   MuseumObject? _proximityPromptObject;
   MapNode? _proximityPromptNode;
-  static const double proximityTriggerRadius = 2.8; // 2.8m proximity radius
-  static const double autoPopupProximityRadius = 2.8; // 2.8m auto-popup threshold for artifacts
+  static const double proximityTriggerRadius = 3.8; // 3.8m proximity radius
+  static const double autoPopupProximityRadius = 3.8; // 3.8m auto-popup threshold for artifacts
   int _currentRouteStepIndex = 0;
 
   bool _isObjectDetailSheetOpen = false;
@@ -973,15 +973,15 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     MuseumObject? promptObj;
 
     for (final node in _nearbyNodes) {
-      if ((node.nodeType == 'exhibit' || node.nodeType == 'artifact') &&
-          node.objectId != null) {
+      if (_isExhibit(node)) {
         final d = _distanceToNode(pos, node);
         if (d <= proximityTriggerRadius) {
-          try {
-            promptObj = objects.firstWhere((o) => o.id == node.objectId);
+          final obj = _findObjectForNode(node);
+          if (obj != null) {
+            promptObj = obj;
             promptNode = node;
             break;
-          } catch (_) {}
+          }
         }
       }
     }
@@ -995,7 +995,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       }
     } else if (_proximityPromptNode != null) {
       final distToLast = _distanceToNode(pos, _proximityPromptNode!);
-      if (distToLast > 3.5) {
+      if (distToLast > 4.8) {
         setState(() {
           _proximityPromptObject = null;
           _proximityPromptNode = null;
@@ -1004,14 +1004,50 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     }
   }
 
+  MuseumObject? _findObjectForNode(MapNode node) {
+    if (objects.isEmpty) return null;
+    if (node.objectId != null) {
+      try {
+        return objects.firstWhere((o) => o.id == node.objectId);
+      } catch (_) {}
+    }
+    final nodeName = node.name.toLowerCase().trim();
+    if (nodeName.isEmpty) return null;
+    try {
+      return objects.firstWhere((o) {
+        final objName = o.name.toLowerCase().trim();
+        return objName == nodeName ||
+            objName.contains(nodeName) ||
+            nodeName.contains(objName);
+      });
+    } catch (_) {}
+    return null;
+  }
+
   void _checkArtifactAutoPopup(PositionState pos) {
     if (!mounted || !isLoaded || objects.isEmpty || allNodes.isEmpty) return;
 
-    // Filter exhibit/artifact nodes on the visitor's current floor
+    // Reset cooldown if user has walked away (> 4.8m) from the last auto-popped artifact
+    if (_lastAutoPoppedNodeId != null) {
+      try {
+        final lastNode = allNodes.firstWhere(
+          (n) => n.id == _lastAutoPoppedNodeId,
+        );
+        final distToLast = _distanceToNode(pos, lastNode);
+        if (distToLast > 4.8) {
+          _lastAutoPoppedNodeId = null;
+          _lastAutoPoppedObjectId = null;
+        }
+      } catch (_) {
+        _lastAutoPoppedNodeId = null;
+        _lastAutoPoppedObjectId = null;
+      }
+    }
+
+    final activeFloor = currentFloorPlan?.floorNumber ?? pos.floor;
     final candidateNodes = allNodes.where((n) {
-      if (n.floor != pos.floor) return false;
-      if (!_isExhibit(n) || n.objectId == null) return false;
-      return true;
+      if (n.floor != activeFloor && n.floor != pos.floor) return false;
+      return _isExhibit(n);
     }).toList();
 
     if (candidateNodes.isEmpty) return;
@@ -1024,12 +1060,12 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     for (final node in candidateNodes) {
       final dist = _distanceToNode(pos, node);
       if (dist <= autoPopupProximityRadius && dist < minDistance) {
-        try {
-          final obj = objects.firstWhere((o) => o.id == node.objectId);
+        final obj = _findObjectForNode(node);
+        if (obj != null) {
           closestNode = node;
           closestObj = obj;
           minDistance = dist;
-        } catch (_) {}
+        }
       }
     }
 
@@ -1074,23 +1110,6 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
 
       // Always pop up the artifact details directly!
       _showObjectDetail(closestObj);
-    } else {
-      // If visitor moved away (> 3.5m) from last auto-popped node, reset cooldown
-      if (_lastAutoPoppedNodeId != null) {
-        try {
-          final lastNode = allNodes.firstWhere(
-            (n) => n.id == _lastAutoPoppedNodeId,
-          );
-          final distToLast = _distanceToNode(pos, lastNode);
-          if (distToLast > 3.5) {
-            _lastAutoPoppedNodeId = null;
-            _lastAutoPoppedObjectId = null;
-          }
-        } catch (_) {
-          _lastAutoPoppedNodeId = null;
-          _lastAutoPoppedObjectId = null;
-        }
-      }
     }
   }
 
@@ -1557,11 +1576,14 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
   bool _isExit(MapNode n) =>
       n.nodeType.toLowerCase().split(',').map((s) => s.trim()).contains('exit');
 
-  bool _isExhibit(MapNode n) => n.nodeType
-      .toLowerCase()
-      .split(',')
-      .map((s) => s.trim())
-      .any((type) => type == 'exhibit' || type == 'artifact');
+  bool _isExhibit(MapNode n) {
+    if (n.objectId != null) return true;
+    return n.nodeType
+        .toLowerCase()
+        .split(',')
+        .map((s) => s.trim())
+        .any((type) => type == 'exhibit' || type == 'artifact');
+  }
 
   void _startNavigationManually() {
     setState(() {
@@ -2864,16 +2886,30 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                           currentRoomId: _effectiveRoomId,
                           visitedNodeIds: visitedNodeIds,
                           onNodeTap: (node) {
-                            if (_isExhibit(node) && node.objectId != null) {
-                              try {
-                                final object = objects.firstWhere(
-                                  (item) => item.id == node.objectId,
-                                );
-                                _showObjectDetail(object);
-                                return;
-                              } catch (_) {}
+                            final obj = _findObjectForNode(node);
+                            if (obj != null) {
+                              _showObjectDetail(obj);
+                              return;
                             }
                             _startSelectiveNavigation(node);
+                          },
+                          onMapLongPress: (normX, normY) {
+                            final activeFloor = currentFloorPlan?.floorNumber ?? currentPosition?.floor ?? 1;
+                            positionService.updatePosition(
+                              PositionState(
+                                x: normX,
+                                y: normY,
+                                floor: activeFloor,
+                                heading: positionService.currentHeading,
+                                accuracy: 1.0,
+                                source: 'manual_touch',
+                                timestamp: DateTime.now().millisecondsSinceEpoch,
+                                currentNodeId: null,
+                              ),
+                            );
+                            if (currentPosition != null) {
+                              _checkArtifactAutoPopup(currentPosition!);
+                            }
                           },
                           onMapCreated: (ctrl) {
                             mapController = ctrl;

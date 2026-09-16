@@ -20,6 +20,7 @@ class IndoorMapWidget extends StatefulWidget {
   final int? currentRoomId;
   final Set<String> visitedNodeIds;
   final Function(MapNode) onNodeTap;
+  final Function(double normX, double normY)? onMapLongPress;
   final Function(MapLibreMapController)? onMapCreated;
 
   const IndoorMapWidget({
@@ -33,6 +34,7 @@ class IndoorMapWidget extends StatefulWidget {
     this.currentRoomId,
     this.visitedNodeIds = const {},
     required this.onNodeTap,
+    this.onMapLongPress,
     this.onMapCreated,
   });
 
@@ -849,6 +851,14 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
                       ),
                       Positioned.fill(
                         child: GestureDetector(
+                          onLongPressStart: (details) {
+                            if (widget.onMapLongPress != null) {
+                              final localOffset = details.localPosition;
+                              final normX = (localOffset.dx / displayW).clamp(0.0, 1.0);
+                              final normY = (localOffset.dy / displayH).clamp(0.0, 1.0);
+                              widget.onMapLongPress!(normX, normY);
+                            }
+                          },
                           onTapUp: (details) {
                             final localOffset = details.localPosition;
                             final normX = localOffset.dx / displayW;
