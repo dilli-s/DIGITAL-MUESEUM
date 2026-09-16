@@ -826,6 +826,7 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
                     children: [
                       Positioned.fill(
                         child: CachedNetworkImage(
+                          key: ValueKey('${widget.floorPlan.id}_$imageUrl'),
                           imageUrl: imageUrl,
                           fit: BoxFit.fill,
                           placeholder: (context, url) => const Center(
@@ -1102,14 +1103,25 @@ class _FloorPlanPainter extends CustomPainter {
       final routePathObj = Path();
       bool started = false;
 
-      // Ensure planned route polyline always renders continuously alongside the live marker
+      // Draw route starting cleanly from the closest forward node to currentPosition, avoiding backtracking lines
+      int startIndex = 0;
       if (currentPosition != null && currentPosition!.floor == floorPlan.floorNumber) {
         final userStart = toCanvas(currentPosition!.x, currentPosition!.y);
+        double minD = double.infinity;
+        for (int i = 0; i < floorRoute.length; i++) {
+          final pt = toCanvas(floorRoute[i].x, floorRoute[i].y);
+          final d = (pt.dx - userStart.dx) * (pt.dx - userStart.dx) +
+              (pt.dy - userStart.dy) * (pt.dy - userStart.dy);
+          if (d < minD) {
+            minD = d;
+            startIndex = i;
+          }
+        }
         routePathObj.moveTo(userStart.dx, userStart.dy);
         started = true;
       }
 
-      for (int i = 0; i < floorRoute.length; i++) {
+      for (int i = startIndex; i < floorRoute.length; i++) {
         final pt = toCanvas(floorRoute[i].x, floorRoute[i].y);
         if (!started) {
           routePathObj.moveTo(pt.dx, pt.dy);

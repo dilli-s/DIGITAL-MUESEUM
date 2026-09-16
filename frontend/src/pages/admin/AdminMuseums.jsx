@@ -236,9 +236,9 @@ const AdminMuseums = () => {
           <tbody className="bg-white divide-y divide-neutral-200">
             {museums.length === 0 ? (
               <tr><td colSpan="5" className="px-6 py-4 text-center text-neutral-500">No museums found.</td></tr>
-            ) : museums.map(museum => (
+            ) : museums.map((museum, index) => (
               <tr key={museum.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{museum.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-800">{index + 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div 
                     onClick={() => setActiveQrMuseum(museum)} 

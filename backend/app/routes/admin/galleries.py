@@ -15,7 +15,7 @@ def get_galleries():
         if museum_id:
             query = query.filter_by(museum_id=museum_id)
             
-        galleries = query.all()
+        galleries = query.order_by(Gallery.id.asc()).all()
         return jsonify({
             "data": [g.serialize() for g in galleries]
         })

@@ -140,9 +140,9 @@ const AdminActivities = () => {
           <tbody className="bg-white divide-y divide-neutral-200">
             {activities.length === 0 ? (
               <tr><td colSpan="5" className="px-6 py-4 text-center text-neutral-500">No activities found.</td></tr>
-            ) : activities.map(activity => (
+            ) : activities.map((activity, index) => (
               <tr key={activity.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{activity.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{index + 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{activity.title}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                   <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">

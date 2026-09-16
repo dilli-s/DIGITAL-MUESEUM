@@ -161,9 +161,9 @@ const AdminCollections = () => {
           <tbody className="bg-white divide-y divide-neutral-200">
             {collections.length === 0 ? (
               <tr><td colSpan="5" className="px-6 py-4 text-center text-neutral-500">No collections found.</td></tr>
-            ) : collections.map(collection => (
+            ) : collections.map((collection, index) => (
               <tr key={collection.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{collection.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-800">{index + 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{collection.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{collection.museum_id}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{collection.gallery_id || 'None'}</td>

@@ -41,6 +41,7 @@ const AdminGalleries = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [museumFilter, setMuseumFilter] = useState('');
   const [floorFilter, setFloorFilter] = useState('');
 
@@ -220,13 +221,18 @@ const AdminGalleries = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-neutral-200">
-            {galleries.filter(g => !floorFilter || String(g.floor) === String(floorFilter) || (floorFilter === '0' && String(g.floor).toLowerCase().includes('ground'))).length === 0 ? (
-              <tr><td colSpan="6" className="px-6 py-4 text-center text-neutral-500">No galleries found for the selected filter.</td></tr>
-            ) : galleries.filter(g => !floorFilter || String(g.floor) === String(floorFilter) || (floorFilter === '0' && String(g.floor).toLowerCase().includes('ground'))).map(gallery => {
-              const hasShape = gallery.boundary_polygon && gallery.boundary_polygon.length >= 3;
-              return (
-                <tr key={gallery.id} className="hover:bg-neutral-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{gallery.id}</td>
+            {(() => {
+              const filtered = galleries
+                .filter(g => !floorFilter || String(g.floor) === String(floorFilter) || (floorFilter === '0' && String(g.floor).toLowerCase().includes('ground')))
+                .sort((a, b) => (Number(a.museum_id) - Number(b.museum_id)) || (Number(a.id) - Number(b.id)));
+              if (filtered.length === 0) {
+                return <tr><td colSpan="6" className="px-6 py-4 text-center text-neutral-500">No galleries found for the selected filter.</td></tr>;
+              }
+              return filtered.map((gallery, index) => {
+                const hasShape = gallery.boundary_polygon && gallery.boundary_polygon.length >= 3;
+                return (
+                  <tr key={gallery.id} className="hover:bg-neutral-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-800">{index + 1}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{gallery.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                     {museums.find(m => String(m.id) === String(gallery.museum_id))?.name || `#${gallery.museum_id}`}
@@ -267,7 +273,8 @@ const AdminGalleries = () => {
                   </td>
                 </tr>
               );
-            })}
+            });
+          })()}
           </tbody>
         </table>
       </div>

@@ -13,6 +13,8 @@ class NavigationRoutePanel extends StatelessWidget {
   final VoidCallback onViewSteps;
   final VoidCallback onScanArtifact;
   final VoidCallback onMarkVisited;
+  final List<MapNode> nearbyNodes;
+  final ValueChanged<MapNode>? onSelectNearbyNode;
 
   const NavigationRoutePanel({
     super.key,
@@ -24,6 +26,8 @@ class NavigationRoutePanel extends StatelessWidget {
     required this.onViewSteps,
     required this.onScanArtifact,
     required this.onMarkVisited,
+    this.nearbyNodes = const [],
+    this.onSelectNearbyNode,
   });
 
   @override
@@ -167,6 +171,81 @@ class NavigationRoutePanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+
+          // Near You Section (wherever user is standing along the route)
+          if (nearbyNodes.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(LucideIcons.compass, size: 14, color: Colors.indigo[600]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Near You',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 32,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: nearbyNodes.take(6).length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (context, idx) {
+                        final node = nearbyNodes[idx];
+                        return InkWell(
+                          onTap: () => onSelectNearbyNode?.call(node),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.indigo[100]!),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  node.objectId != null ? LucideIcons.image : LucideIcons.mapPin,
+                                  size: 13,
+                                  color: Colors.indigo[700],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  node.name,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.indigo[900],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Row 4: Action Buttons (View Steps, Scan Artifact, Mark Visited)
           Row(

@@ -74,17 +74,23 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
       // Check if already synced and recent
       final cachedMuseumId = await _offlineStore.getSyncedMuseumId();
       final cachedNodes = await _offlineStore.getNodes();
+      final cachedFloorPlans = await _offlineStore.getFloorPlans();
+
+      final hasMatchingFloor = widget.initialFloorPlanId == null ||
+          cachedFloorPlans.any((p) => p.id == widget.initialFloorPlanId);
 
       if (!widget.forceSync &&
           cachedMuseumId == widget.museumId &&
-          cachedNodes.isNotEmpty) {
+          cachedNodes.isNotEmpty &&
+          cachedFloorPlans.isNotEmpty &&
+          hasMatchingFloor) {
         // Fast-path: local data already cached
         setState(() {
           _progress = 100;
           _statusMessage = 'Offline data verified!';
           _isComplete = true;
         });
-        _floorPlans = await _offlineStore.getFloorPlans();
+        _floorPlans = cachedFloorPlans;
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) _proceedToMuseum();
         return;
@@ -142,7 +148,8 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
 
     // Resolve floor plan
     String? floorId = widget.initialFloorPlanId;
-    if (floorId == null && _floorPlans.isNotEmpty) {
+    if ((floorId == null || !_floorPlans.any((p) => p.id == floorId)) &&
+        _floorPlans.isNotEmpty) {
       floorId = _floorPlans.first.id;
     }
     if (floorId != null) {

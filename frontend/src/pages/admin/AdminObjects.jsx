@@ -594,12 +594,12 @@ const AdminObjects = () => {
             <tbody className="bg-white divide-y divide-neutral-200">
               {filteredObjects.length === 0 ? (
                 <tr><td colSpan="8" className="px-6 py-8 text-center text-neutral-500 italic">No matching objects found.</td></tr>
-              ) : filteredObjects.map(obj => {
+              ) : filteredObjects.map((obj, index) => {
                 const hasLocation = obj.latitude !== null && obj.latitude !== undefined && obj.latitude !== '' &&
                                    obj.longitude !== null && obj.longitude !== undefined && obj.longitude !== '';
                 return (
                   <tr key={obj.id} className={!hasLocation ? 'bg-red-50/40' : ''}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-neutral-500">{obj.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-neutral-800">{index + 1}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="bg-white p-1 rounded-md border border-neutral-200 inline-block">
                         <QRCodeCanvas value={`${window.location.origin}/objects/${obj.id}`} size={48} level="M" />

@@ -581,7 +581,7 @@ class OfflineStore {
   /// Clears cached museum content when museums are deleted or reset
   Future<void> clearMuseumData() async {
     final db = await database;
-    await db.delete(tableCache, where: 'key IN (?, ?, ?, ?, ?, ?, ?, ?, ?)', whereArgs: [
+    await db.delete(tableCache, where: 'key IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', whereArgs: [
       keyMuseums,
       keyGalleries,
       keyObjects,
@@ -591,6 +591,14 @@ class OfflineStore {
       keyStories,
       keyExhibitions,
       keyLearning,
+      keySyncedMuseumId,
+      keyLastSync,
     ]);
+  }
+
+  /// Clears cached floor plans
+  Future<void> clearFloorPlans() async {
+    final db = await database;
+    await db.delete(tableCache, where: 'key = ?', whereArgs: [keyFloorPlans]);
   }
 }

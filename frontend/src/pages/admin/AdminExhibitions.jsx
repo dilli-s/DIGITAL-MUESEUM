@@ -156,9 +156,9 @@ const AdminExhibitions = () => {
           <tbody className="bg-white divide-y divide-neutral-200">
             {exhibitions.length === 0 ? (
               <tr><td colSpan="5" className="px-6 py-4 text-center text-neutral-500">No exhibitions found.</td></tr>
-            ) : exhibitions.map(exhibition => (
+            ) : exhibitions.map((exhibition, index) => (
               <tr key={exhibition.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{exhibition.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{index + 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">{exhibition.title}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">{exhibition.museum_id}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">

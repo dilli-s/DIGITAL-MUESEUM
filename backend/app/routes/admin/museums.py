@@ -10,7 +10,7 @@ admin_museums_bp = Blueprint('admin_museums', __name__)
 @admin_required
 def get_museums():
     try:
-        museums = Museum.query.all()
+        museums = Museum.query.order_by(Museum.id.asc()).all()
         return jsonify({
             "data": [m.serialize() for m in museums]
         })
