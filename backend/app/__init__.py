@@ -52,16 +52,29 @@ def create_app(config_class=Config):
         return jsonify({"status": "ok", "message": "Digital Museum API is running"})
 
     # Initialize CORS safely with credentials support
-    frontend_url_str = app.config.get('FRONTEND_URL', 'http://localhost:5173')
+    frontend_url_str = app.config.get('FRONTEND_URL', '')
     allowed_origins = [url.strip() for url in frontend_url_str.split(',') if url.strip()]
     
-    # Permanently allow common local development ports
-    local_ports = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175']
+    # Allow localhost, 127.0.0.1, and all Vercel preview/production domains
+    local_ports = [
+        'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000',
+        'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://127.0.0.1:5175', 'http://127.0.0.1:3000'
+    ]
     for port in local_ports:
         if port not in allowed_origins:
             allowed_origins.append(port)
             
-    CORS(app, origins=allowed_origins, supports_credentials=True)
+    # Include regex pattern for all vercel.app preview and production domains
+    allowed_origin_patterns = [
+        r"^https:\/\/.*\.vercel\.app$",
+        r"^http:\/\/localhost:\d+$",
+        r"^http:\/\/127\.0\.0\.1:\d+$"
+    ]
+    for orig in allowed_origins:
+        if orig and orig not in allowed_origin_patterns:
+            allowed_origin_patterns.append(orig)
+
+    CORS(app, origins=allowed_origin_patterns, supports_credentials=True)
 
     # Initialize extensions
     db.init_app(app)
