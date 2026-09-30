@@ -1,0 +1,51 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "backend": {
+      "root": "backend",
+      "framework": "flask",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "flask-mapping-service",
+          "format": "url",
+          "env": "MAPPING_SERVICE_URL"
+        }
+      ]
+    },
+    "flask-mapping-service": {
+      "root": "flask-mapping-service",
+      "framework": "flask"
+    },
+    "frontend": {
+      "root": "frontend",
+      "framework": "vite"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/map-api/(.*)",
+      "destination": {
+        "service": "flask-mapping-service"
+      }
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
+    }
+  ]
+}

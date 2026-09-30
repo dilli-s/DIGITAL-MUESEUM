@@ -3,7 +3,7 @@ import axios from 'axios';
 // In production, this should be an environment variable
 const getMapApiBase = () => {
   if (import.meta.env.VITE_MAP_API_URL) return import.meta.env.VITE_MAP_API_URL;
-  if (typeof window !== 'undefined') return `http://${window.location.hostname}:5001/api`;
+  if (typeof window !== 'undefined') return '/map-api';
   return 'http://127.0.0.1:5001/api';
 };
 

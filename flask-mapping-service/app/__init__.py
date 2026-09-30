@@ -28,13 +28,20 @@ def create_app(config_class=Config):
     from app.routes.rooms import rooms_bp
     from app.routes.fingerprints import fingerprints_bp
     
+    # Register blueprints with both /api prefix and root for flexible service routing
     app.register_blueprint(health_bp)
-    app.register_blueprint(map_bp, url_prefix='/api')
-    app.register_blueprint(anchors_bp, url_prefix='/api')
-    app.register_blueprint(artifacts_bp, url_prefix='/api')
-    app.register_blueprint(qr_bp, url_prefix='/api')
-    app.register_blueprint(navigation_bp, url_prefix='/api')
-    app.register_blueprint(rooms_bp, url_prefix='/api')
+    app.register_blueprint(map_bp, url_prefix='/api', name='map_api')
+    app.register_blueprint(map_bp, name='map_root')
+    app.register_blueprint(anchors_bp, url_prefix='/api', name='anchors_api')
+    app.register_blueprint(anchors_bp, name='anchors_root')
+    app.register_blueprint(artifacts_bp, url_prefix='/api', name='artifacts_api')
+    app.register_blueprint(artifacts_bp, name='artifacts_root')
+    app.register_blueprint(qr_bp, url_prefix='/api', name='qr_api')
+    app.register_blueprint(qr_bp, name='qr_root')
+    app.register_blueprint(navigation_bp, url_prefix='/api', name='navigation_api')
+    app.register_blueprint(navigation_bp, name='navigation_root')
+    app.register_blueprint(rooms_bp, url_prefix='/api', name='rooms_api')
+    app.register_blueprint(rooms_bp, name='rooms_root')
     app.register_blueprint(fingerprints_bp, name='fingerprints_root')
     app.register_blueprint(fingerprints_bp, url_prefix='/api', name='fingerprints_api')
     

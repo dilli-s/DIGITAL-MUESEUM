@@ -811,10 +811,12 @@ const handleRevertPointCorrection = async (idx) => {
 const getFloorPlanImageUrl = useCallback((url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const mapApiBase = import.meta.env.VITE_MAP_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:5001/api` : 'http://127.0.0.1:5001/api');
-    const host = mapApiBase.replace(/\/api\/?$/, '');
     const cleanUrl = url.startsWith('/') ? url : `/${url}`;
-    return `${host}${cleanUrl}`;
+    if (import.meta.env.VITE_MAP_API_URL) {
+      const host = import.meta.env.VITE_MAP_API_URL.replace(/\/api\/?$/, '');
+      return `${host}${cleanUrl}`;
+    }
+    return cleanUrl;
 }, []);
 
 const getSortedPolygonPoints = useCallback((pts) => {
