@@ -43,14 +43,30 @@ def serialize_museum(m):
         "exhibition_count": len(m.exhibitions) if hasattr(m, 'exhibitions') and m.exhibitions else 0
     }
 
+import time
+
+_museums_cache = {}
+_cache_ttl = 60  # seconds
+
+def invalidate_museums_cache():
+    global _museums_cache
+    _museums_cache.clear()
+
 @museum_bp.route('/museums', methods=['GET'])
 def get_museums():
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 12, type=int)
         if per_page > 50: per_page = 50
-        
         search = request.args.get('search')
+
+        cache_key = f"{page}_{per_page}_{search}"
+        now = time.time()
+        if cache_key in _museums_cache:
+            data, exp = _museums_cache[cache_key]
+            if now < exp:
+                return jsonify(data)
+
         query = Museum.query.options(
             db.selectinload(Museum.galleries),
             db.selectinload(Museum.collections),
@@ -59,18 +75,18 @@ def get_museums():
         )
 
         if search:
-            search = f"%{search}%"
+            search_pat = f"%{search}%"
             query = query.filter(
                 db.or_(
-                    Museum.name.ilike(search),
-                    Museum.description.ilike(search),
-                    Museum.location.ilike(search)
+                    Museum.name.ilike(search_pat),
+                    Museum.description.ilike(search_pat),
+                    Museum.location.ilike(search_pat)
                 )
             )
 
         paginated = query.paginate(page=page, per_page=per_page, error_out=False)
 
-        return jsonify({
+        resp_data = {
             "data": [serialize_museum(m) for m in paginated.items],
             "pagination": {
                 "page": paginated.page,
@@ -78,7 +94,10 @@ def get_museums():
                 "total": paginated.total,
                 "pages": paginated.pages
             }
-        })
+        }
+        
+        _museums_cache[cache_key] = (resp_data, now + _cache_ttl)
+        return jsonify(resp_data)
     except Exception as e:
         return jsonify({"error": {"code": "SERVER_ERROR", "message": "An error occurred"}}), 500
 
