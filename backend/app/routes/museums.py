@@ -51,7 +51,12 @@ def get_museums():
         if per_page > 50: per_page = 50
         
         search = request.args.get('search')
-        query = Museum.query
+        query = Museum.query.options(
+            db.selectinload(Museum.galleries),
+            db.selectinload(Museum.collections),
+            db.selectinload(Museum.objects),
+            db.selectinload(Museum.exhibitions)
+        )
 
         if search:
             search = f"%{search}%"

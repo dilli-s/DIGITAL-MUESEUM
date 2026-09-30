@@ -19,6 +19,12 @@ def init_db_pool(app=None, dsn=None):
             "postgresql://USER:PASSWORD@127.0.0.1:5432/DATABASE"
         )
 
+    if _database_url and "pooler.supabase.com:5432" in _database_url:
+        _database_url = _database_url.replace("pooler.supabase.com:5432", "pooler.supabase.com:6543", 1)
+    if _database_url and "supabase.com" in _database_url and "sslmode=" not in _database_url:
+        sep = "&" if "?" in _database_url else "?"
+        _database_url = f"{_database_url}{sep}sslmode=require"
+
     try:
         if db_pool is not None:
             try:

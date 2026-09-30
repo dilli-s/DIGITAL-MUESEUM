@@ -22,6 +22,10 @@ class Config:
     elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
+    # Optimize Supabase connection URL for Serverless (port 6543 Transaction pooler)
+    if DATABASE_URL and "pooler.supabase.com:5432" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("pooler.supabase.com:5432", "pooler.supabase.com:6543", 1)
+
     if DATABASE_URL and "supabase.com" in DATABASE_URL and "sslmode=" not in DATABASE_URL:
         sep = "&" if "?" in DATABASE_URL else "?"
         DATABASE_URL = f"{DATABASE_URL}{sep}sslmode=require"
@@ -29,8 +33,17 @@ class Config:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL or 'sqlite:///local_db.sqlite3'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,
+        "pool_pre_ping": False,  # Remove extra ping roundtrip in serverless functions
+        "pool_size": 5,
+        "max_overflow": 10,
         "pool_recycle": 300,
+        "connect_args": {
+            "connect_timeout": 5,
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3
+        }
     }
     
     # CORS
