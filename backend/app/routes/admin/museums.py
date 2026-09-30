@@ -71,6 +71,16 @@ def create_museum():
             cafe_restrooms=data.get('cafe_restrooms', False),
         )
         db.session.add(museum)
+        db.session.flush()
+
+        # Automatically create a default gallery for new museum so objects always have a home
+        default_gallery = Gallery(
+            name="Main Gallery",
+            description=f"Main Exhibition Gallery for {museum.name}",
+            museum_id=museum.id,
+            floor="Ground Floor"
+        )
+        db.session.add(default_gallery)
         db.session.commit()
         return jsonify({
             "data": museum.serialize()

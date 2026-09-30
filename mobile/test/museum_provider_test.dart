@@ -45,7 +45,7 @@ void main() {
       final provider = MuseumProvider();
       final museum = Museum(
         id: 12,
-        name: 'Vanalok Test Museum',
+        name: 'Digital Museum Test Museum',
         address: 'Bengaluru',
       );
       provider.museums = [museum];
@@ -53,7 +53,7 @@ void main() {
 
       expect(provider.museums.length, 1);
       expect(provider.isUsingCachedData, isTrue);
-      expect(provider.museums.first.name, 'Vanalok Test Museum');
+      expect(provider.museums.first.name, 'Digital Museum Test Museum');
     });
   });
 }

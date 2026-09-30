@@ -85,14 +85,22 @@ class _ExploreMoreScreenState extends State<ExploreMoreScreen> {
 
       // 2. Related Objects (same gallery or category)
       final allObjects = await store.getObjects();
-      relatedObjects = allObjects.where((o) {
-        if (o.id == obj.id) return false;
+      final seenNames = <String>{obj.name.toLowerCase().trim()};
+      final uniqueRelated = <MuseumObject>[];
+      for (final o in allObjects) {
+        if (o.id == obj.id) continue;
+        final normName = o.name.toLowerCase().trim();
+        if (seenNames.contains(normName)) continue;
         final sameGal = o.galleryId == obj.galleryId;
         final sameCat = o.category != null &&
             obj.category != null &&
             o.category!.toLowerCase() == obj.category!.toLowerCase();
-        return sameGal || sameCat;
-      }).take(6).toList();
+        if (sameGal || sameCat) {
+          seenNames.add(normName);
+          uniqueRelated.add(o);
+        }
+      }
+      relatedObjects = uniqueRelated.take(6).toList();
 
       // 3. Stories
       final objStories = await store.getStoriesForObject(obj.id);

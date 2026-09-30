@@ -39,6 +39,23 @@ class MuseumObject(BaseModel):
     
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
+
+    # ── Virtual Tour fields ──────────────────────────────────────────────────
+    # Which tour node (panorama capture point) this object is physically at
+    tour_node_id = db.Column(db.Integer, db.ForeignKey('tour_nodes.id'), nullable=True)
+    # Angular position of the object marker on the panorama (degrees)
+    tour_yaw = db.Column(db.Float, nullable=True)
+    tour_pitch = db.Column(db.Float, nullable=True)
+    # Ordered list of full-resolution image URLs for the turntable rotate viewer
+    angle_photos = db.Column(db.JSON, nullable=True)  # ["url1", "url2", ...]
+
+    # ── Extended curatorial metadata (museum placard fields) ─────────────────
+    materials = db.Column(db.String(255), nullable=True)   # e.g. "Bronze, granite"
+    dimensions = db.Column(db.String(255), nullable=True)  # e.g. "42 × 28 × 15 cm"
+    provenance = db.Column(db.Text, nullable=True)         # origin/acquisition history
+    # Flexible key-value list for any object-type-specific attributes
+    # Format: [{"key": "Inscription", "value": "OM 1234"}, ...]
+    custom_fields = db.Column(db.JSON, nullable=True)
     
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -47,6 +64,7 @@ class MuseumObject(BaseModel):
     museum = db.relationship('Museum', back_populates='objects')
     gallery = db.relationship('Gallery', back_populates='objects')
     collection = db.relationship('Collection', back_populates='objects')
+    tour_node = db.relationship('TourNode', back_populates='objects', foreign_keys=[tour_node_id])
     
     exhibitions = db.relationship('Exhibition', secondary=exhibition_objects, back_populates='objects')
     

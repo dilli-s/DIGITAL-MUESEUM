@@ -100,10 +100,28 @@ def update_gallery(gallery_id):
 @admin_required
 def delete_gallery(gallery_id):
     try:
-        gallery = Gallery.query.get(gallery_id)
+        gallery = db.session.get(Gallery, gallery_id)
         if not gallery:
             return jsonify({"error": {"code": "NOT_FOUND", "message": "Gallery not found."}}), 404
             
+        museum_id = gallery.museum_id
+        # Find another gallery in this museum or create a default one
+        other_gallery = Gallery.query.filter(Gallery.museum_id == museum_id, Gallery.id != gallery_id).first()
+        if not other_gallery:
+            museum = db.session.get(Museum, museum_id)
+            m_name = museum.name if museum else "Museum"
+            other_gallery = Gallery(
+                name="Main Gallery",
+                description=f"Main Exhibition Gallery for {m_name}",
+                museum_id=museum_id,
+                floor="Ground Floor"
+            )
+            db.session.add(other_gallery)
+            db.session.flush()
+
+        # Reassign all objects before deleting the gallery
+        MuseumObject.query.filter_by(gallery_id=gallery_id).update({"gallery_id": other_gallery.id}, synchronize_session='fetch')
+        
         db.session.delete(gallery)
         db.session.commit()
         return jsonify({

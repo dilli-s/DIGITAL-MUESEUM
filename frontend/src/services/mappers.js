@@ -18,7 +18,7 @@ export const mapGalleryFromApi = (gallery) => {
   return {
     ...gallery,
     museumId: gallery.museum_id,
-    objectCount: gallery.objectCount || 0,
+    objectCount: gallery.objectCount ?? gallery.object_count ?? (Array.isArray(gallery.objects) ? gallery.objects.length : 0),
     period: gallery.period || 'Unknown',
     theme: gallery.theme || 'Uncategorized'
   };
@@ -32,19 +32,21 @@ export const mapCollectionFromApi = (collection) => {
     category: collection.category || 'Uncategorized',
     period: collection.period || 'Unknown',
     location: collection.location || 'Unknown',
-    objectCount: collection.objectCount || 0,
+    objectCount: collection.objectCount ?? collection.object_count ?? (Array.isArray(collection.objects) ? collection.objects.length : 0),
     featured: collection.featured || false
   };
 };
 
 export const mapExhibitionFromApi = (exhibition) => {
+  const objIds = exhibition.objectIds || exhibition.object_ids || (Array.isArray(exhibition.objects) ? exhibition.objects.map(o => (typeof o === 'object' && o !== null ? o.id : o)) : []);
   return {
     ...exhibition,
     museumId: exhibition.museum_id,
     longDescription: exhibition.long_description || '',
     startDate: exhibition.start_date || null,
     endDate: exhibition.end_date || null,
-    objectIds: exhibition.objectIds || []
+    objectIds: objIds,
+    objectCount: exhibition.objectCount ?? exhibition.object_count ?? objIds.length
   };
 };
 

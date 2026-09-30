@@ -66,7 +66,7 @@ const Galleries = () => {
     });
   }, [museumGalleries, searchTerm, selectedCategory]);
 
-  const totalObjects = museumGalleries.reduce((acc, curr) => acc + (curr.objectCount || 0), 0);
+  const totalObjects = museumGalleries.reduce((acc, curr) => acc + (curr.objectCount ?? curr.object_count ?? 0), 0);
 
   if (isLoading) {
     return (
@@ -143,7 +143,7 @@ const Galleries = () => {
         </div>
         <div className="bg-neutral-50 rounded-lg p-4 border border-neutral-200 text-center flex-shrink-0 md:w-48">
           <div className="text-2xl font-bold text-neutral-900">{museumGalleries.length} Galleries</div>
-          <div className="text-sm text-neutral-500">{totalObjects.toLocaleString()} Objects</div>
+          <div className="text-sm text-neutral-500">{totalObjects.toLocaleString()} {totalObjects === 1 ? 'Object' : 'Objects'}</div>
         </div>
       </div>
 

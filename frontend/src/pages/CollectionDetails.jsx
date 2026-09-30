@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getMuseum, getCollection, getObjects } from '../services/api';
 import ObjectCard from '../components/object/ObjectCard';
 import { ChevronRight, ArrowLeft, Layers, Search, RefreshCw, LayoutDashboard } from 'lucide-react';
+import { getMediaUrl } from '../utils/media';
 
 const CollectionDetails = () => {
   const { museumId, collectionId } = useParams();
@@ -31,14 +32,18 @@ const CollectionDetails = () => {
       ]);
       
       if (String(c.museumId) !== String(museumId)) {
+        console.log("NOT FOUND BECAUSE MISMATCH", c.museumId, museumId);
         setNotFound(true);
       } else {
         setMuseum(m);
         setCollection(c);
-        setCollectionObjects(objs.data || []);
+        const uniqueObjs = Array.from(
+          new Map((objs.data || []).map(o => [o.name?.toLowerCase().trim() || o.id, o])).values()
+        );
+        setCollectionObjects(uniqueObjs);
       }
     } catch (err) {
-      console.error(err);
+      console.error("CATCH ERROR:", err);
       if (err.response && err.response.status === 404) {
         setNotFound(true);
       } else {
@@ -164,8 +169,19 @@ const CollectionDetails = () => {
             {collection.description}
           </p>
         </div>
-        <div className="hidden md:flex relative z-10 w-1/3 justify-center items-center">
-           <Layers className="w-32 h-32 text-neutral-700 opacity-50" />
+        <div className="hidden md:flex relative z-10 w-1/3 justify-center items-center overflow-hidden rounded-xl min-h-[200px]">
+           {(collection.image_url || collection.image) ? (
+             <img 
+               src={getMediaUrl(collection.image_url || collection.image)} 
+               alt={collection.name}
+               className="w-full h-full object-cover rounded-xl shadow-md max-h-[260px]"
+               onError={(e) => {
+                 e.target.style.display = 'none';
+               }}
+             />
+           ) : (
+             <Layers className="w-32 h-32 text-neutral-700 opacity-50" />
+           )}
         </div>
       </section>
 

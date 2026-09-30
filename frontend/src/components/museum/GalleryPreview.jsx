@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Image as ImageIcon } from 'lucide-react';
+import { getMediaUrl } from '../../utils/media';
 
 const GalleryPreview = ({ galleries, museumId }) => {
   if (!galleries || galleries.length === 0) return null;
@@ -15,18 +16,34 @@ const GalleryPreview = ({ galleries, museumId }) => {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {galleries.slice(0, 3).map((gallery) => (
-          <div key={gallery.id} className="group bg-white rounded-xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
-            <div className="h-40 bg-neutral-100 relative overflow-hidden flex-shrink-0 flex items-center justify-center">
-               <ImageIcon className="w-12 h-12 text-neutral-300" />
-            </div>
+        {galleries.slice(0, 3).map((gallery) => {
+          const rawImg = gallery.image_url || gallery.image;
+          const imgUrl = rawImg ? getMediaUrl(rawImg) : null;
+          return (
+            <div key={gallery.id} className="group bg-white rounded-xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
+              <div className="h-40 bg-neutral-100 relative overflow-hidden flex-shrink-0 flex items-center justify-center">
+                {imgUrl ? (
+                  <img 
+                    src={imgUrl} 
+                    alt={gallery.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div className={`absolute inset-0 bg-neutral-100 flex items-center justify-center ${imgUrl ? 'hidden' : ''}`}>
+                   <ImageIcon className="w-12 h-12 text-neutral-300" />
+                </div>
+              </div>
             <div className="p-5 flex-grow flex flex-col">
               <h3 className="text-lg font-bold text-neutral-900 mb-2">{gallery.name}</h3>
               <p className="text-neutral-600 text-sm mb-4 flex-grow line-clamp-2">
                 {gallery.description}
               </p>
               <div className="flex items-center text-xs font-medium text-neutral-500 mb-4">
-                <span>{gallery.objectCount} Objects</span>
+                <span>{gallery.objectCount ?? gallery.object_count ?? 0} {(gallery.objectCount ?? gallery.object_count) === 1 ? 'Object' : 'Objects'}</span>
               </div>
               <Link 
                 to={`/museum/${museumId}/galleries`} 
@@ -36,7 +53,8 @@ const GalleryPreview = ({ galleries, museumId }) => {
               </Link>
             </div>
           </div>
-        ))}
+        );
+      })}
       </div>
       <div className="mt-6 sm:hidden text-center">
         <Link to={`/museum/${museumId}/galleries`} className="text-sm font-semibold text-neutral-900 hover:underline">

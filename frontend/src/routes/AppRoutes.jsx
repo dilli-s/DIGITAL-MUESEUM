@@ -20,8 +20,11 @@ import LearningDetails from '../pages/LearningDetails';
 import ObjectLearning from '../pages/ObjectLearning';
 import StoryDetails from '../pages/StoryDetails';
 import Activity from '../pages/Activity';
-import Search from '../pages/Search';
 import Scan from '../pages/Scan';
+import Search from '../pages/Search';
+import About from '../pages/About';
+import NearbyMuseums from '../pages/NearbyMuseums';
+import AppDownload from '../pages/AppDownload';
 
 import Assistant from '../pages/Assistant';
 import Login from '../pages/Login';
@@ -29,6 +32,10 @@ import Register from '../pages/Register';
 import Profile from '../pages/Profile';
 import Favourites from '../pages/Favourites';
 import NotFound from '../pages/NotFound';
+
+// Virtual Tour
+import VirtualTour from '../pages/VirtualTour';
+import MuseumTourMap from '../pages/MuseumTourMap';
 
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminMuseums from '../pages/admin/AdminMuseums';
@@ -41,7 +48,8 @@ import AdminStories from '../pages/admin/AdminStories';
 import AdminActivities from '../pages/admin/AdminActivities';
 import AdminAnalytics from '../pages/admin/AdminAnalytics';
 import AdminCoordinateEditor from '../pages/admin/AdminCoordinateEditor';
-import AdminGPSDashboard from '../pages/admin/AdminGPSDashboard';
+import AdminVirtualTour from '../pages/admin/AdminVirtualTour';
+
 import AdminUsers from '../pages/admin/AdminUsers';
 import ErrorBoundary from '../components/ErrorBoundary';
 
@@ -63,6 +71,14 @@ const AppRoutes = () => {
       <Route path="/museum/:museumId/collection/:collectionId" element={<CollectionDetails />} />
       <Route path="/museum/:museumId/exhibitions" element={<Exhibitions />} />
       <Route path="/museum/:museumId/exhibition/:exhibitionId" element={<ExhibitionDetails />} />
+
+      {/* Virtual Tour — public, full-screen (bypasses MainLayout nav/footer via CSS) */}
+      <Route path="/museum/:museumId/tour" element={<VirtualTour />} />
+      <Route path="/museum/:museumId/tour/:nodeId" element={<VirtualTour />} />
+
+      {/* Application Map */}
+      <Route path="/museum/:museumId/map" element={<MuseumTourMap />} />
+
       <Route path="/objects/:objectId" element={<ObjectDetails />} />
       <Route path="/objects/:objectId/explore" element={<ExploreMore />} />
       <Route path="/objects/:objectId/learn" element={<ObjectLearning />} />
@@ -73,7 +89,13 @@ const AppRoutes = () => {
       <Route path="/learning/activity/:activityId" element={<Activity />} />
       <Route path="/scan" element={<Scan />} />
       <Route path="/search" element={<Search />} />
-      <Route path="/assistant" element={<Assistant />} />
+      <Route path="/assistant" element={<Navigate to="/" replace />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/explore-more" element={<About />} />
+      <Route path="/map" element={<NearbyMuseums />} />
+      <Route path="/nearby" element={<NearbyMuseums />} />
+      <Route path="/download" element={<AppDownload />} />
+      <Route path="/app" element={<AppDownload />} />
 
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -130,11 +152,12 @@ const AppRoutes = () => {
           <AdminCoordinateEditor />
         </AdminRoute>
       } />
-      <Route path="/admin/gps-dashboard" element={
+      <Route path="/admin/virtual-tour" element={
         <AdminRoute>
-          <AdminGPSDashboard />
+          <AdminVirtualTour />
         </AdminRoute>
       } />
+
       <Route path="/admin/stories" element={
         <AdminRoute>
           <AdminStories />

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'config/theme.dart';
 import 'models/museum_provider.dart';
 import 'screens/entry_qr_scanner_screen.dart';
 import 'screens/physical_museum_screen.dart';
@@ -81,10 +82,10 @@ class _MyAppState extends State<MyApp> {
   Widget _buildHome(bool hasSelectedContext) {
     if (_isCheckingDeepLink) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF7F5F0),
+        backgroundColor: VanalokTheme.bgDark,
         body: Center(
           child: CircularProgressIndicator(
-            color: Color(0xFFD65F45),
+            color: VanalokTheme.gold,
           ),
         ),
       );
@@ -116,46 +117,9 @@ class _MyAppState extends State<MyApp> {
             navigatorKey: _navigatorKey,
             title: 'Digital Museum',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFFD65F45),
-                brightness: Brightness.light,
-                surface: const Color(0xFFF7F5F0),
-              ),
-              scaffoldBackgroundColor: const Color(0xFFF7F5F0),
-              fontFamily: 'sans',
-              appBarTheme: const AppBarTheme(
-                backgroundColor: Color(0xFFF7F5F0),
-                foregroundColor: Color(0xFF17211F),
-                elevation: 0,
-                centerTitle: false,
-              ),
-              cardTheme: CardThemeData(
-                color: Colors.white,
-                elevation: 0,
-                margin: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: const BorderSide(color: Color(0xFFE6E2D9)),
-                ),
-              ),
-              elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD65F45),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-              useMaterial3: true,
-            ),
+            theme: VanalokTheme.lightTheme,
+            darkTheme: VanalokTheme.darkTheme,
+            themeMode: ThemeMode.light,
             home: _buildHome(hasSelectedContext),
           );
         },

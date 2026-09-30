@@ -84,6 +84,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
   List<String> tourStops = [];
   bool isTourActive = false;
   bool isNavigationActive = false;
+  bool isHeadingUp = false;
+  final GlobalKey<IndoorMapWidgetState> _indoorMapKey =
+      GlobalKey<IndoorMapWidgetState>();
   double _compassHeading = 0.0;
   StreamSubscription<double>? _headingSubscription;
   bool isFullscreen = false;
@@ -97,6 +100,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     positionService.startPdr();
     setState(() {
       isNavigationActive = true;
+      isHeadingUp = true;
     });
     if (isTourActive) {
       suspendedTourStops = List.from(tourStops);
@@ -106,7 +110,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     selectiveTargetNode = target;
 
     // If target is on a different floor plan, switch to that floor plan
-    if (currentFloorPlan != null && target.floor != currentFloorPlan!.floorNumber) {
+    if (currentFloorPlan != null &&
+        target.floor != currentFloorPlan!.floorNumber) {
       try {
         final targetFp = allFloorPlans.firstWhere(
           (fp) => fp.floorNumber == target.floor,
@@ -120,6 +125,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     }
 
     _calculateRoute(target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _indoorMapKey.currentState?.recenter();
+    });
   }
 
   void _resumeTour() {
@@ -130,6 +138,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         isTourSuspended = false;
         selectiveTargetNode = null;
         isTourActive = true;
+        isNavigationActive = true;
+        isHeadingUp = true;
       });
       _routeToNextTourStop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -142,9 +152,15 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       setState(() {
         isTourSuspended = false;
         selectiveTargetNode = null;
+        isTourActive = true;
+        isNavigationActive = true;
+        isHeadingUp = true;
       });
       _startFullTour();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _indoorMapKey.currentState?.recenter();
+    });
   }
 
   int? _offRouteStartTime;
@@ -172,36 +188,70 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
   }
 
   void _recenterMap() {
-    if (mapController != null &&
-        currentPosition?.latitude != null &&
-        currentPosition?.longitude != null) {
-      mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(
-              currentPosition!.latitude!,
-              currentPosition!.longitude!,
-            ),
-            zoom: 21,
-          ),
+    if (isNavigationActive && !isHeadingUp) {
+      setState(() {
+        isHeadingUp = true;
+      });
+    }
+    _indoorMapKey.currentState?.recenter();
+  }
+
+  void _toggleMapOrientation() {
+    setState(() {
+      isHeadingUp = !isHeadingUp;
+    });
+    if (isHeadingUp) {
+      _indoorMapKey.currentState?.recenter();
+    } else {
+      _indoorMapKey.currentState?.resetToOverview();
+    }
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isHeadingUp
+              ? 'Rotating (Heading-Up) Navigation Active'
+              : 'Fixed North-Up View Active',
         ),
-      );
-    } else if (mapController != null && allNodes.isNotEmpty) {
-      final node = allNodes.firstWhere(
-        (n) => n.latitude != null && n.longitude != null,
-        orElse: () => allNodes.first,
-      );
-      if (node.latitude != null && node.longitude != null) {
-        mapController!.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: LatLng(node.latitude!, node.longitude!),
-              zoom: 20,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  double _calculateLiveRemainingDistance() {
+    if (currentRoute == null) return 0.0;
+    double totalRemaining = currentRoute!.distance;
+    if (currentPosition != null) {
+      final path = currentRoute!.path;
+      int nextIdx = math.min(_currentRouteStepIndex + 1, path.length - 1);
+      if (path.isNotEmpty) {
+        double distToNext = _distanceToNode(currentPosition!, path[nextIdx]);
+        double remDist = 0;
+        for (int i = nextIdx; i < path.length - 1; i++) {
+          remDist += _distanceToNode(
+            PositionState(
+              x: path[i].x,
+              y: path[i].y,
+              floor: path[i].floor,
+              heading: 0,
+              accuracy: 1,
+              source: 'path',
+              timestamp: 0,
+              latitude: path[i].latitude,
+              longitude: path[i].longitude,
             ),
-          ),
-        );
+            path[i + 1],
+          );
+        }
+        totalRemaining = distToNext + remDist;
       }
     }
+    return totalRemaining;
+  }
+
+  int _calculateWalkMinutes(double distanceMeters) {
+    int walkMinutes = (distanceMeters / (1.4 * 60)).ceil();
+    return walkMinutes < 1 ? 1 : walkMinutes;
   }
 
   void _startNavigationToObject(MuseumObject obj) {
@@ -263,6 +313,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       if (mounted) {
         setState(() {
           _compassHeading = heading;
+          if (currentPosition != null) {
+            currentPosition = currentPosition!.copyWith(heading: heading);
+          }
         });
       }
     });
@@ -334,7 +387,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
 
     _checkGPSBounds();
     _loadData();
-    _autoPopupCheckTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _autoPopupCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      _,
+    ) {
       if (mounted && currentPosition != null) {
         _checkArtifactAutoPopup(currentPosition!);
       }
@@ -499,10 +554,21 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       }
       selMus ??= m.isNotEmpty ? m.first : null;
 
+      final uniqueObjectsMap = <String, MuseumObject>{};
+      for (final item in o) {
+        final key = item.name.toLowerCase().trim();
+        if (!uniqueObjectsMap.containsKey(key) ||
+            (uniqueObjectsMap[key]!.galleryId == null &&
+                item.galleryId != null)) {
+          uniqueObjectsMap[key] = item;
+        }
+      }
+      final cleanObjects = uniqueObjectsMap.values.toList();
+
       setState(() {
         museums = m;
         galleries = g;
-        objects = o;
+        objects = cleanObjects;
         allNodes = n;
         allEdges = e;
         allFloorPlans = f;
@@ -515,6 +581,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
           floorPlans: allFloorPlans,
         );
         isLoaded = true;
+        _autoPoppedObjectIds.clear();
       });
 
       _updatePositionServiceContext();
@@ -573,7 +640,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     if (isOnline) {
       if (!mounted) return;
       final provider = context.read<MuseumProvider>();
-      final targetMusId = provider.selectedMuseumId ?? (selectedMuseum?.id ?? 1);
+      final targetMusId =
+          provider.selectedMuseumId ?? (selectedMuseum?.id ?? 1);
       try {
         final data = await offlineStore.syncMuseum(
           targetMusId,
@@ -736,9 +804,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync failed: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Sync failed: $e')));
       }
     }
   }
@@ -754,7 +821,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         if (parsed != null) return parsed == activeFloorNum;
         final clean = g.floor!.replaceAll(RegExp(r'[^0-9]'), '');
         if (clean.isNotEmpty) return int.tryParse(clean) == activeFloorNum;
-        if (g.floor!.toLowerCase().contains('ground') && activeFloorNum == 1) return true;
+        if (g.floor!.toLowerCase().contains('ground') && activeFloorNum == 1)
+          return true;
       }
       return false;
     }).toList();
@@ -806,14 +874,20 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     // Room Completion & Exit Guidance
     if (isRoomMapMode && roomDoorwayNode != null) {
       // Find exhibits belonging to the active room
-      final roomPrefix = selectedGallery?.name.toLowerCase().split(' ').first ?? '';
-      final roomExhibits = allNodes.where((n) =>
-        _isExhibit(n) &&
-        (n.floor == (currentFloorPlan?.floorNumber ?? 0)) &&
-        (roomPrefix.isNotEmpty && n.name.toLowerCase().contains(roomPrefix))
-      ).toList();
+      final roomPrefix =
+          selectedGallery?.name.toLowerCase().split(' ').first ?? '';
+      final roomExhibits = allNodes
+          .where(
+            (n) =>
+                _isExhibit(n) &&
+                (n.floor == (currentFloorPlan?.floorNumber ?? 0)) &&
+                (roomPrefix.isNotEmpty &&
+                    n.name.toLowerCase().contains(roomPrefix)),
+          )
+          .toList();
 
-      if (roomExhibits.isNotEmpty && roomExhibits.every((n) => visitedNodeIds.contains(n.id))) {
+      if (roomExhibits.isNotEmpty &&
+          roomExhibits.every((n) => visitedNodeIds.contains(n.id))) {
         if (!isRoomCompleted) {
           isRoomCompleted = true;
           // Calculate path to room exit doorway
@@ -821,7 +895,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               backgroundColor: Color(0xFF2C5E43),
-              content: Text('🎉 Gallery complete! Follow the green route to the exit.'),
+              content: Text(
+                '🎉 Gallery complete! Follow the green route to the exit.',
+              ),
               duration: Duration(seconds: 4),
             ),
           );
@@ -830,7 +906,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
 
       // Check if visitor has exited the room (reached doorway or outside polygon)
       if (isRoomCompleted) {
-        final double distToDoor = ((pos.x - roomDoorwayNode!.x).abs() + (pos.y - roomDoorwayNode!.y).abs());
+        final double distToDoor =
+            ((pos.x - roomDoorwayNode!.x).abs() +
+            (pos.y - roomDoorwayNode!.y).abs());
         if (distToDoor < 0.08 || (newRoomId == null && pos.x > 0)) {
           // Revert to Whole Museum Map!
           setState(() {
@@ -857,16 +935,36 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
   final int _lastAutoTriggerTime = 0;
   MuseumObject? _proximityPromptObject;
   MapNode? _proximityPromptNode;
-  static const double proximityTriggerRadius = 3.8; // 3.8m proximity radius
-  static const double autoPopupProximityRadius = 3.8; // 3.8m auto-popup threshold for artifacts
+  static const double proximityTriggerRadius =
+      2.5; // 2.5m proximity radius for responsive detection
+  static const double autoPopupProximityRadius =
+      2.2; // 2.2m auto-popup threshold for artifacts
   int _currentRouteStepIndex = 0;
 
   bool _isObjectDetailSheetOpen = false;
+  bool _isDebouncingSheet = false;
   String? _currentOpenNodeId;
   int? _currentOpenObjectId;
-  String? _lastAutoPoppedNodeId;
-  int? _lastAutoPoppedObjectId;
+  String? _lastActiveProximityNodeId;
+  int? _lastActiveProximityObjectId;
+  String? _lastPromptedProximityNodeId;
+  String? _lastPromptedStairNodeId;
+  MapNode? _floorTransitionPromptNode;
+  final Set<int> _autoPoppedObjectIds = <int>{};
+  final Set<String> _autoPoppedObjectNames = <String>{};
+  final Set<String> _autoPoppedNodeIds = <String>{};
   Timer? _autoPopupCheckTimer;
+
+  bool _isStairOrElevator(MapNode node) {
+    final t = node.nodeType.toLowerCase().trim();
+    return t.contains('stair') || t.contains('elevator');
+  }
+
+  bool _hasAlreadyPopped(MuseumObject obj, [MapNode? node]) {
+    if (node != null && _autoPoppedNodeIds.contains(node.id)) return true;
+    if (_autoPoppedObjectIds.contains(obj.id)) return true;
+    return false;
+  }
 
   double _distanceToNode(PositionState pos, MapNode node) {
     double? geoDist;
@@ -915,7 +1013,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         if (parsed != null) return parsed == activeFloorNum;
         final clean = g.floor!.replaceAll(RegExp(r'[^0-9]'), '');
         if (clean.isNotEmpty) return int.tryParse(clean) == activeFloorNum;
-        if (g.floor!.toLowerCase().contains('ground') && activeFloorNum == 1) return true;
+        if (g.floor!.toLowerCase().contains('ground') && activeFloorNum == 1)
+          return true;
       }
       return false;
     }).toList();
@@ -963,8 +1062,11 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     // Snap currentNodeId to closest floor node if within 6 meters
     if (floorNodes.isNotEmpty) {
       final closestDist = _distanceToNode(pos, floorNodes.first);
-      if (closestDist <= 6.0 && currentPosition!.currentNodeId != floorNodes.first.id) {
-        currentPosition = currentPosition!.copyWith(currentNodeId: floorNodes.first.id);
+      if (closestDist <= 6.0 &&
+          currentPosition!.currentNodeId != floorNodes.first.id) {
+        currentPosition = currentPosition!.copyWith(
+          currentNodeId: floorNodes.first.id,
+        );
       }
     }
 
@@ -977,10 +1079,16 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         final d = _distanceToNode(pos, node);
         if (d <= proximityTriggerRadius) {
           final obj = _findObjectForNode(node);
-          if (obj != null) {
+          if (obj != null &&
+              !_isObjectDetailSheetOpen &&
+              _lastPromptedProximityNodeId != node.id) {
             promptObj = obj;
             promptNode = node;
             break;
+          }
+        } else if (d > proximityTriggerRadius + 1.5) {
+          if (_lastPromptedProximityNodeId == node.id) {
+            _lastPromptedProximityNodeId = null;
           }
         }
       }
@@ -991,6 +1099,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         setState(() {
           _proximityPromptObject = promptObj;
           _proximityPromptNode = promptNode;
+          _lastPromptedProximityNodeId = promptNode!.id;
         });
       }
     } else if (_proximityPromptNode != null) {
@@ -1000,6 +1109,40 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
           _proximityPromptObject = null;
           _proximityPromptNode = null;
         });
+      }
+    }
+
+    // 3. Floor Transition Prompt
+    if (allFloorPlans.length > 1) {
+      MapNode? transitionNode;
+      for (final node in _nearbyNodes) {
+        if (_isStairOrElevator(node)) {
+          final d = _distanceToNode(pos, node);
+          if (d <= 3.5) {
+            if (_lastPromptedStairNodeId != node.id) {
+              transitionNode = node;
+              break;
+            }
+          } else if (d > 5.0) {
+            if (_lastPromptedStairNodeId == node.id) {
+              _lastPromptedStairNodeId = null;
+            }
+          }
+        }
+      }
+
+      if (transitionNode != null && _floorTransitionPromptNode?.id != transitionNode.id) {
+        setState(() {
+          _floorTransitionPromptNode = transitionNode;
+          _lastPromptedStairNodeId = transitionNode!.id;
+        });
+      } else if (transitionNode == null && _floorTransitionPromptNode != null) {
+        final dist = _distanceToNode(pos, _floorTransitionPromptNode!);
+        if (dist > 5.0) {
+          setState(() {
+            _floorTransitionPromptNode = null;
+          });
+        }
       }
     }
   }
@@ -1014,45 +1157,40 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     final nodeName = node.name.toLowerCase().trim();
     if (nodeName.isEmpty) return null;
     try {
+      // Prioritize object with assigned galleryId to avoid ghost duplicates
       return objects.firstWhere((o) {
         final objName = o.name.toLowerCase().trim();
-        return objName == nodeName ||
-            objName.contains(nodeName) ||
-            nodeName.contains(objName);
+        return (objName == nodeName ||
+                objName.contains(nodeName) ||
+                nodeName.contains(objName)) &&
+            o.galleryId != null;
       });
-    } catch (_) {}
+    } catch (_) {
+      try {
+        return objects.firstWhere((o) {
+          final objName = o.name.toLowerCase().trim();
+          return objName == nodeName ||
+              objName.contains(nodeName) ||
+              nodeName.contains(objName);
+        });
+      } catch (_) {}
+    }
     return null;
   }
 
   void _checkArtifactAutoPopup(PositionState pos) {
     if (!mounted || !isLoaded || objects.isEmpty || allNodes.isEmpty) return;
 
-    // Reset cooldown if user has walked away (> 4.8m) from the last auto-popped artifact
-    if (_lastAutoPoppedNodeId != null) {
-      try {
-        final lastNode = allNodes.firstWhere(
-          (n) => n.id == _lastAutoPoppedNodeId,
-        );
-        final distToLast = _distanceToNode(pos, lastNode);
-        if (distToLast > 4.8) {
-          _lastAutoPoppedNodeId = null;
-          _lastAutoPoppedObjectId = null;
-        }
-      } catch (_) {
-        _lastAutoPoppedNodeId = null;
-        _lastAutoPoppedObjectId = null;
-      }
-    }
-
     final activeFloor = currentFloorPlan?.floorNumber ?? pos.floor;
     final candidateNodes = allNodes.where((n) {
       if (n.floor != activeFloor && n.floor != pos.floor) return false;
-      return _isExhibit(n);
+      if (!_isExhibit(n)) return false;
+      return true;
     }).toList();
 
     if (candidateNodes.isEmpty) return;
 
-    // Find closest exhibit/artifact node within autoPopupProximityRadius
+    // Find closest exhibit/artifact node within autoPopupProximityRadius (2.2m)
     MapNode? closestNode;
     MuseumObject? closestObj;
     double minDistance = double.infinity;
@@ -1070,25 +1208,29 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     }
 
     if (closestNode != null && closestObj != null) {
-      // If modal bottom sheet is already open for this exact artifact, do nothing
+      if (_hasAlreadyPopped(closestObj, closestNode)) {
+        return;
+      }
+
+      // If a sheet is already open showing this exact artifact, do not duplicate
       if (_isObjectDetailSheetOpen && _currentOpenObjectId == closestObj.id) {
         return;
       }
 
-      // If user closed this exact artifact's popup recently and hasn't walked away, avoid re-opening repeatedly
-      if (_lastAutoPoppedObjectId == closestObj.id) {
+      // If user is standing still at the same node after dismissing its sheet, don't re-pop until they move
+      if (_lastActiveProximityNodeId == closestNode.id &&
+          !_isObjectDetailSheetOpen) {
         return;
       }
 
-      // Dismiss any existing bottom sheet to show newly approached artifact
-      if (_isObjectDetailSheetOpen && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-
-      // Mark as visited in history & update auto-pop tracking
+      // Mark as visited in history & update active proximity tracking
       visitedNodeIds.add(closestNode.id);
-      _lastAutoPoppedNodeId = closestNode.id;
-      _lastAutoPoppedObjectId = closestObj.id;
+      _autoPoppedNodeIds.add(closestNode.id);
+      _autoPoppedObjectIds.add(closestObj.id);
+      _lastActiveProximityNodeId = closestNode.id;
+      _lastActiveProximityObjectId = closestObj.id;
+      _proximityPromptObject = null;
+      _proximityPromptNode = null;
 
       // Advance tour stop if active tour stop matches
       if (isTourActive &&
@@ -1108,8 +1250,25 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         }
       }
 
-      // Always pop up the artifact details directly!
+      // Show the artifact details card directly & simultaneously with movement
       _showObjectDetail(closestObj);
+    } else {
+      // Position moved away from previous artifact: reset active proximity tracker
+      if (_lastActiveProximityNodeId != null) {
+        final prevNode = allNodes
+            .where((n) => n.id == _lastActiveProximityNodeId)
+            .firstOrNull;
+        if (prevNode != null) {
+          final dist = _distanceToNode(pos, prevNode);
+          if (dist > autoPopupProximityRadius + 0.3) {
+            _lastActiveProximityNodeId = null;
+            _lastActiveProximityObjectId = null;
+          }
+        } else {
+          _lastActiveProximityNodeId = null;
+          _lastActiveProximityObjectId = null;
+        }
+      }
     }
   }
 
@@ -1136,6 +1295,128 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
 
   static const double deviationThresholdMeters = 4.5;
   static const int deviationDebounceMs = 1500;
+
+  Widget _buildFloorTransitionBanner() {
+    final isElevator = _floorTransitionPromptNode!.nodeType.toLowerCase().contains('elevator');
+    final icon = isElevator ? Icons.elevator : Icons.stairs;
+    final title = isElevator ? 'Elevator Nearby' : 'Stairs Nearby';
+    final otherFloors = allFloorPlans.where((fp) => fp.floorNumber != currentFloorPlan?.floorNumber).toList();
+
+    return Material(
+      color: Colors.transparent,
+      elevation: 6,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A).withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.blueAccent.shade100.withValues(alpha: 0.6)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: Colors.blueAccent, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                      const Text(
+                        'Change floor?',
+                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.x, color: Colors.white70, size: 18),
+                  onPressed: () {
+                    setState(() {
+                      _floorTransitionPromptNode = null;
+                    });
+                  },
+                ),
+              ],
+            ),
+            if (otherFloors.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: otherFloors.map((fp) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: ActionChip(
+                        label: Text('Go to Floor ${fp.floorNumber}'),
+                        backgroundColor: Colors.blueAccent.shade700,
+                        labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        onPressed: () => _handleFloorTransition(fp.floorNumber),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleFloorTransition(int targetFloorNumber) {
+    setState(() {
+      _floorTransitionPromptNode = null;
+    });
+    
+    final targetFp = allFloorPlans.firstWhere((fp) => fp.floorNumber == targetFloorNumber);
+    
+    MapNode? matchingNode;
+    final targetFloorNodes = allNodes.where((n) => n.floor == targetFloorNumber && _isStairOrElevator(n)).toList();
+    if (targetFloorNodes.isNotEmpty) {
+      if (_floorTransitionPromptNode != null && _floorTransitionPromptNode!.name.isNotEmpty) {
+         try {
+           matchingNode = targetFloorNodes.firstWhere(
+             (n) => n.name.toLowerCase().trim() == _floorTransitionPromptNode!.name.toLowerCase().trim()
+           );
+         } catch (_) {}
+      }
+      matchingNode ??= targetFloorNodes.first;
+    }
+
+    setState(() {
+      currentFloorPlan = targetFp;
+    });
+    context.read<MuseumProvider>().setSelectedFloor(targetFp.id);
+    _updatePositionServiceContext();
+
+    if (matchingNode != null && currentPosition != null) {
+       final newPos = currentPosition!.copyWith(
+          x: matchingNode.x,
+          y: matchingNode.y,
+          floor: targetFloorNumber,
+          currentNodeId: matchingNode.id,
+          latitude: matchingNode.latitude,
+          longitude: matchingNode.longitude,
+       );
+       positionService.updatePosition(newPos);
+    }
+  }
 
   void _checkRouteDeviation(PositionState pos) {
     if (currentRoute == null || currentRoute!.path.isEmpty || isRecalculating) {
@@ -1230,16 +1511,22 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
 
           // Rank candidates by proximity to current live position
           final sortedCandidates = List<MapNode>.from(floorNodes);
-          sortedCandidates.sort((a, b) =>
-              _distanceToNode(currentPosition!, a)
-                  .compareTo(_distanceToNode(currentPosition!, b)));
+          sortedCandidates.sort(
+            (a, b) => _distanceToNode(
+              currentPosition!,
+              a,
+            ).compareTo(_distanceToNode(currentPosition!, b)),
+          );
 
           // Evaluate the closest candidates to choose the optimal forward node toward destination
           final nearbyCandidates = sortedCandidates.take(5).toList();
           if (dest != null && nearbyCandidates.length > 1) {
             for (final candidate in nearbyCandidates) {
               final dUserToCand = _distanceToNode(currentPosition!, candidate);
-              final route = pathfindingService!.findShortestPath(candidate.id, dest.id);
+              final route = pathfindingService!.findShortestPath(
+                candidate.id,
+                dest.id,
+              );
               if (route != null) {
                 final total = dUserToCand + route.distance;
                 if (total < bestTotalDist) {
@@ -1403,8 +1690,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         destinationNode != null) {
       if (currentPosition!.floor == destinationNode!.floor) {
         double dist = _distanceToNode(currentPosition!, destinationNode!);
-        if (dist < 1.5) {
-          // 1.5m arrival radius
+        if (dist <= 2.2) {
+          // 2.2m arrival radius
           final arrivedNode = destinationNode!;
           visitedNodeIds.add(arrivedNode.id);
           scanResult = 'arrived';
@@ -1425,26 +1712,18 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
               });
             }
 
-            if (arrivedNode.objectId != null) {
-              try {
-                final obj = objects.firstWhere(
-                  (o) => o.id == arrivedNode.objectId,
-                );
-                _showObjectDetail(obj);
-              } catch (_) {}
+            final obj = _findObjectForNode(arrivedNode);
+            if (obj != null) {
+              _showObjectDetail(obj);
             }
           } else {
             setState(() {
               currentRoute = null;
               destinationNode = null;
             });
-            if (arrivedNode.objectId != null && _isExhibit(arrivedNode)) {
-              try {
-                final obj = objects.firstWhere(
-                  (o) => o.id == arrivedNode.objectId,
-                );
-                _showObjectDetail(obj);
-              } catch (_) {}
+            final obj = _findObjectForNode(arrivedNode);
+            if (obj != null) {
+              _showObjectDetail(obj);
             }
           }
 
@@ -1485,7 +1764,12 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       final targetFloor = currentPosition!.floor;
       final floorNodes = allNodes.where((n) => n.floor == targetFloor).toList();
       if (floorNodes.isNotEmpty) {
-        floorNodes.sort((a, b) => _distanceToNode(currentPosition!, a).compareTo(_distanceToNode(currentPosition!, b)));
+        floorNodes.sort(
+          (a, b) => _distanceToNode(
+            currentPosition!,
+            a,
+          ).compareTo(_distanceToNode(currentPosition!, b)),
+        );
         startId = floorNodes.first.id;
       }
     }
@@ -1516,7 +1800,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       // Ensure blue dot is anchored on this floor at the route start point
       if (result != null && result.path.isNotEmpty) {
         final startPt = result.path.first;
-        if (currentPosition == null || currentPosition!.floor != startPt.floor) {
+        if (currentPosition == null ||
+            currentPosition!.floor != startPt.floor) {
           currentPosition = PositionState(
             x: startPt.x,
             y: startPt.y,
@@ -1588,9 +1873,27 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
   void _startNavigationManually() {
     setState(() {
       isNavigationActive = true;
+      isHeadingUp = true;
     });
     positionService.startPdr();
     _startFullTour();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _indoorMapKey.currentState?.recenter();
+    });
+  }
+
+  void _endNavigation() {
+    setState(() {
+      isNavigationActive = false;
+      isTourActive = false;
+      isHeadingUp = false;
+      currentRoute = null;
+      destinationNode = null;
+      // Note: visitedNodeIds is preserved to keep tour progress
+    });
+    positionService.stopSimulation();
+    positionService.stopPdr();
+    _indoorMapKey.currentState?.resetToOverview();
   }
 
   void _startFullTour() {
@@ -1648,6 +1951,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       setState(() {
         isTourActive = true;
         isNavigationActive = true;
+        isHeadingUp = true;
       });
       _routeToNextTourStop();
     }
@@ -1669,7 +1973,7 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
     _calculateRoute(destNode);
   }
 
-  void _showFloorPlanPicker() {
+  void _showFloorPlanPicker({VoidCallback? onSelectionComplete}) {
     if (allFloorPlans.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No maps are available for this museum.')),
@@ -1685,23 +1989,35 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
         allFloorPlans: allFloorPlans,
         currentFloorPlan: currentFloorPlan,
         onSelectFloorPlan: (floorPlan) {
+          final previousDest = destinationNode;
+          final wasNavActive = isNavigationActive;
+          final wasTourActive = isTourActive;
+
           setState(() {
             currentFloorPlan = floorPlan;
-            currentRoute = null;
-            destinationNode = null;
-            isTourActive = false;
 
             // Anchor blue dot to the newly selected floor plan
-            final floorNodes = allNodes.where((n) => n.floor == floorPlan.floorNumber).toList();
+            final floorNodes = allNodes
+                .where((n) => n.floor == floorPlan.floorNumber)
+                .toList();
             MapNode? floorAnchor;
             try {
-              floorAnchor = floorNodes.firstWhere(_isEntrance);
+              floorAnchor = floorNodes.firstWhere(
+                (n) =>
+                    n.nodeType.contains('stairs') ||
+                    n.nodeType.contains('elevator'),
+              );
             } catch (_) {
-              if (floorNodes.isNotEmpty) floorAnchor = floorNodes.first;
+              try {
+                floorAnchor = floorNodes.firstWhere(_isEntrance);
+              } catch (_) {
+                if (floorNodes.isNotEmpty) floorAnchor = floorNodes.first;
+              }
             }
 
             if (floorAnchor != null &&
-                (currentPosition == null || currentPosition!.floor != floorPlan.floorNumber)) {
+                (currentPosition == null ||
+                    currentPosition!.floor != floorPlan.floorNumber)) {
               currentPosition = PositionState(
                 x: floorAnchor.x,
                 y: floorAnchor.y,
@@ -1717,48 +2033,76 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
               positionService.updatePosition(currentPosition!);
             }
           });
+
           context.read<MuseumProvider>().setSelectedFloor(floorPlan.id);
           _updatePositionServiceContext();
+
+          if (wasNavActive && previousDest != null) {
+            _calculateRoute(previousDest);
+          } else if (wasTourActive && tourStops.isNotEmpty) {
+            _routeToNextTourStop();
+          } else if (!wasNavActive && !wasTourActive) {
+            setState(() {
+              currentRoute = null;
+              destinationNode = null;
+            });
+          }
+          if (onSelectionComplete != null) {
+            onSelectionComplete();
+          }
         },
       ),
     );
   }
 
-  void _handleManualMuseumSelection() {
-    if (selectedMuseum == null || allNodes.isEmpty) return;
+  Future<void> _handleManualMuseumSelection() async {
+    if (selectedMuseum == null) return;
 
-    MapNode? startNode;
-    try {
-      startNode = allNodes.firstWhere((n) => _isEntrance(n));
-    } catch (_) {
-      try {
-        startNode = allNodes.firstWhere(
-          (n) => n.latitude != null && n.longitude != null,
-        );
-      } catch (_) {}
-    }
-
-    if (startNode != null) {
-      positionService.scanQR(startNode);
-      setState(() {
-        scanResult = 'found';
-        if (allFloorPlans.isNotEmpty) {
-          try {
-            currentFloorPlan = allFloorPlans.firstWhere(
-              (p) => p.floorNumber == startNode!.floor,
-            );
-          } catch (_) {
-            currentFloorPlan = allFloorPlans.first;
-          }
-        }
-        _updatePositionServiceContext();
-      });
-    } else {
+    // Set the museum in the provider so data fetching targets this museum
+    context.read<MuseumProvider>().setSelectedMuseum(selectedMuseum!.id);
+    
+    // Show a loading indicator while we fetch the new museum's data
+    setState(() {
+      isLoaded = false;
+    });
+    
+    await _loadData();
+    
+    if (!mounted) return;
+    
+    if (allFloorPlans.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No mapping nodes available for this museum.'),
         ),
       );
+      return;
+    }
+
+    // Instead of auto-jumping to map, show the floor plan picker
+    if (allFloorPlans.length > 1) {
+      _showFloorPlanPicker(onSelectionComplete: () {
+        if (mounted) {
+          setState(() {
+            scanResult = 'found';
+          });
+        }
+      });
+    } else {
+      // Just one floor, jump straight in
+      MapNode? startNode;
+      try {
+        startNode = allNodes.firstWhere((n) => _isEntrance(n));
+      } catch (_) {}
+      
+      if (startNode != null) {
+        positionService.scanQR(startNode);
+      }
+      setState(() {
+        scanResult = 'found';
+        currentFloorPlan = allFloorPlans.first;
+        _updatePositionServiceContext();
+      });
     }
   }
 
@@ -1887,11 +2231,13 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       locationService.forceIndoorMode();
 
       // Check QR type (Room Doorway vs Museum Entrance)
-      final isRoomEntry = data.contains('/room/') ||
+      final isRoomEntry =
+          data.contains('/room/') ||
           data.contains('room_') ||
           foundNode.name.toLowerCase().contains('door') ||
           foundNode.name.toLowerCase().contains('foyer');
-      final isMuseumEntrance = (data.contains('vanalok://museum/') && !data.contains('/room/')) ||
+      final isMuseumEntrance =
+          (data.contains('vanalok://museum/') && !data.contains('/room/')) ||
           data.contains('museum_1_entrance') ||
           data.contains('vanalok_museum_');
 
@@ -1901,10 +2247,14 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
           final gName = g.name.toLowerCase();
           final nodeName = foundNode.name.toLowerCase();
           if (nodeName.contains(gName) ||
-              (gName.contains('living') && (nodeName.contains('living') || data.contains('living'))) ||
-              (gName.contains('kitchen') && (nodeName.contains('kitchen') || data.contains('kitchen'))) ||
-              (gName.contains('bedroom') && (nodeName.contains('bedroom') || data.contains('bedroom'))) ||
-              (gName.contains('bath') && (nodeName.contains('bath') || data.contains('bath')))) {
+              (gName.contains('living') &&
+                  (nodeName.contains('living') || data.contains('living'))) ||
+              (gName.contains('kitchen') &&
+                  (nodeName.contains('kitchen') || data.contains('kitchen'))) ||
+              (gName.contains('bedroom') &&
+                  (nodeName.contains('bedroom') || data.contains('bedroom'))) ||
+              (gName.contains('bath') &&
+                  (nodeName.contains('bath') || data.contains('bath')))) {
             matchedGallery = g;
             break;
           }
@@ -1953,7 +2303,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: const Color(0xFF2C5E43),
-              content: Text('📍 Entered ${matchedGallery?.name ?? 'Gallery'}! Room Map Active.'),
+              content: Text(
+                '📍 Entered ${matchedGallery?.name ?? 'Gallery'}! Room Map Active.',
+              ),
             ),
           );
         }
@@ -2030,14 +2382,37 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
 
   void _showObjectDetail(MuseumObject obj, {VoidCallback? onNavigate}) {
     if (!mounted) return;
-    if (_isObjectDetailSheetOpen && _currentOpenObjectId == obj.id) return;
+
+    if (_isObjectDetailSheetOpen || _isDebouncingSheet) {
+      return; // If any sheet is open or opening, simply ignore new requests to prevent double-popping
+    }
+
+    _isDebouncingSheet = true;
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _isDebouncingSheet = false;
+      }
+    });
+
+    _isObjectDetailSheetOpen = true;
 
     _isObjectDetailSheetOpen = true;
     _currentOpenObjectId = obj.id;
+    _proximityPromptObject = null;
+    _proximityPromptNode = null;
+
     try {
       final match = allNodes.firstWhere((n) => n.objectId == obj.id);
       _currentOpenNodeId = match.id;
-    } catch (_) {}
+    } catch (_) {
+      try {
+        final normName = obj.name.toLowerCase().trim();
+        final matchByName = allNodes.firstWhere(
+          (n) => n.name.toLowerCase().trim() == normName,
+        );
+        _currentOpenNodeId = matchByName.id;
+      } catch (_) {}
+    }
 
     showModalBottomSheet(
       context: context,
@@ -2098,6 +2473,265 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
       } catch (_) {}
     }
     return currentRoomId;
+  }
+
+  Widget _buildPersistentNavigationCard() {
+    if (!isNavigationActive || destinationNode == null) {
+      return const SizedBox.shrink();
+    }
+
+    MuseumObject? targetObj;
+    if (destinationNode!.objectId != null) {
+      try {
+        targetObj = objects.firstWhere(
+          (o) => o.id == destinationNode!.objectId,
+        );
+      } catch (_) {}
+    }
+
+    final double totalRemaining = _calculateLiveRemainingDistance();
+    final int walkMin = _calculateWalkMinutes(totalRemaining);
+    final String distText = totalRemaining < 10.0
+        ? '${totalRemaining.toStringAsFixed(1)} m'
+        : '${totalRemaining.round()} m';
+
+    String nextStep = 'Follow route';
+    if (currentRoute != null && currentRoute!.instructions.isNotEmpty) {
+      final int displayIdx = math.min(
+        _currentRouteStepIndex + 1,
+        currentRoute!.instructions.length - 1,
+      );
+      nextStep = currentRoute!.instructions[displayIdx];
+    }
+
+    final String? imageUrl =
+        targetObj != null &&
+            (targetObj.image != null || targetObj.images.isNotEmpty)
+        ? ApiConfig.getMediaUrl(targetObj.image ?? targetObj.images.first)
+        : null;
+
+    final String title = targetObj?.name ?? destinationNode!.name;
+    final String? category = targetObj?.category;
+
+    return Positioned(
+      top: 12,
+      left: 16,
+      right: 16,
+      child: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: currentRoute != null ? _showTurnByTurnStepsModal : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.indigo.shade100, width: 1.2),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    color: Colors.indigo.shade50,
+                    child: imageUrl != null && imageUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Icon(
+                              LucideIcons.landmark,
+                              color: Colors.indigo.shade700,
+                              size: 22,
+                            ),
+                          )
+                        : Icon(
+                            LucideIcons.landmark,
+                            color: Colors.indigo.shade700,
+                            size: 22,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (category != null && category.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.indigo.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                category,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.indigo.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.navigation,
+                            size: 12,
+                            color: Colors.indigo.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              nextStep,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFC7D2FE)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '~$walkMin min',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo.shade900,
+                        ),
+                      ),
+                      Text(
+                        distText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.indigo.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFloorSelectorChip() {
+    if (allFloorPlans.isEmpty) return const SizedBox.shrink();
+
+    final String floorTitle = currentFloorPlan?.name.isNotEmpty == true
+        ? currentFloorPlan!.name
+        : 'Level ${currentFloorPlan?.floorNumber ?? currentPosition?.floor ?? 1}';
+
+    final double topOffset =
+        (isFullscreen && isNavigationActive && destinationNode != null)
+        ? 86.0
+        : 16.0;
+
+    return Positioned(
+      top: topOffset,
+      left: 16,
+      child: Material(
+        elevation: 4,
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        child: InkWell(
+          onTap: _showFloorPlanPicker,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  LucideIcons.layers,
+                  size: 15,
+                  color: Colors.indigo.shade700,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  floorTitle,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  LucideIcons.chevronDown,
+                  size: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -2256,9 +2890,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const MuseumSelectionScreen(
-                            showBackButton: true,
-                          ),
+                          builder: (_) =>
+                              const MuseumSelectionScreen(showBackButton: true),
                         ),
                       );
                     },
@@ -2594,8 +3227,12 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isRoomMapMode ? LucideIcons.doorOpen : LucideIcons.landmark,
-                          color: isRoomMapMode ? const Color(0xFF68D391) : const Color(0xFFE2847A),
+                          isRoomMapMode
+                              ? LucideIcons.doorOpen
+                              : LucideIcons.landmark,
+                          color: isRoomMapMode
+                              ? const Color(0xFF68D391)
+                              : const Color(0xFFE2847A),
                           size: 14,
                         ),
                         const SizedBox(width: 8),
@@ -2634,18 +3271,29 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                               );
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white24,
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(LucideIcons.logOut, size: 10, color: Colors.white),
+                                  Icon(
+                                    LucideIcons.logOut,
+                                    size: 10,
+                                    color: Colors.white,
+                                  ),
                                   SizedBox(width: 3),
                                   Text(
                                     'EXIT',
-                                    style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -2791,10 +3439,15 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                                         builder: (context) {
                                           final int displayIdx = math.min(
                                             _currentRouteStepIndex + 1,
-                                            currentRoute!.instructions.length - 1,
+                                            currentRoute!.instructions.length -
+                                                1,
                                           );
-                                          final instr = currentRoute!.instructions.isNotEmpty
-                                              ? currentRoute!.instructions[displayIdx]
+                                          final instr =
+                                              currentRoute!
+                                                  .instructions
+                                                  .isNotEmpty
+                                              ? currentRoute!
+                                                    .instructions[displayIdx]
                                               : 'Follow route';
                                           return Text(
                                             instr,
@@ -2809,14 +3462,25 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                                     ),
                                     Builder(
                                       builder: (context) {
-                                        double totalRemaining = currentRoute!.distance;
+                                        double totalRemaining =
+                                            currentRoute!.distance;
                                         if (currentPosition != null) {
                                           final path = currentRoute!.path;
-                                          int nextIdx = math.min(_currentRouteStepIndex + 1, path.length - 1);
+                                          int nextIdx = math.min(
+                                            _currentRouteStepIndex + 1,
+                                            path.length - 1,
+                                          );
                                           if (path.isNotEmpty) {
-                                            double distToNext = _distanceToNode(currentPosition!, path[nextIdx]);
+                                            double distToNext = _distanceToNode(
+                                              currentPosition!,
+                                              path[nextIdx],
+                                            );
                                             double remDist = 0;
-                                            for (int i = nextIdx; i < path.length - 1; i++) {
+                                            for (
+                                              int i = nextIdx;
+                                              i < path.length - 1;
+                                              i++
+                                            ) {
                                               remDist += _distanceToNode(
                                                 PositionState(
                                                   x: path[i].x,
@@ -2832,7 +3496,8 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                                                 path[i + 1],
                                               );
                                             }
-                                            totalRemaining = distToNext + remDist;
+                                            totalRemaining =
+                                                distToNext + remDist;
                                           }
                                         }
                                         String displayDist =
@@ -2877,6 +3542,9 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                     children: [
                       if (currentFloorPlan != null)
                         IndoorMapWidget(
+                          key: _indoorMapKey,
+                          isHeadingUp: isHeadingUp,
+                          heading: _compassHeading,
                           floorPlan: currentFloorPlan!,
                           currentPosition: currentPosition,
                           routePath: currentRoute?.path ?? [],
@@ -2886,30 +3554,39 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                           currentRoomId: _effectiveRoomId,
                           visitedNodeIds: visitedNodeIds,
                           onNodeTap: (node) {
+                            if (currentPosition?.currentNodeId == node.id) {
+                              final obj = _findObjectForNode(node);
+                              if (obj != null) {
+                                _showObjectDetail(obj);
+                              }
+                              return;
+                            }
+
                             final obj = _findObjectForNode(node);
                             if (obj != null) {
+                              _startSelectiveNavigation(node);
                               _showObjectDetail(obj);
                               return;
                             }
                             _startSelectiveNavigation(node);
                           },
                           onMapLongPress: (normX, normY) {
-                            final activeFloor = currentFloorPlan?.floorNumber ?? currentPosition?.floor ?? 1;
-                            positionService.updatePosition(
-                              PositionState(
-                                x: normX,
-                                y: normY,
-                                floor: activeFloor,
-                                heading: positionService.currentHeading,
-                                accuracy: 1.0,
-                                source: 'manual_touch',
-                                timestamp: DateTime.now().millisecondsSinceEpoch,
-                                currentNodeId: null,
-                              ),
+                            final activeFloor =
+                                currentFloorPlan?.floorNumber ??
+                                currentPosition?.floor ??
+                                1;
+                            final newPos = PositionState(
+                              x: normX,
+                              y: normY,
+                              floor: activeFloor,
+                              heading: positionService.currentHeading,
+                              accuracy: 1.0,
+                              source: 'manual_touch',
+                              timestamp: DateTime.now().millisecondsSinceEpoch,
+                              currentNodeId: null,
                             );
-                            if (currentPosition != null) {
-                              _checkArtifactAutoPopup(currentPosition!);
-                            }
+                            positionService.updatePosition(newPos);
+                            _checkArtifactAutoPopup(newPos);
                           },
                           onMapCreated: (ctrl) {
                             mapController = ctrl;
@@ -2918,8 +3595,26 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                       else
                         const Center(child: Text('No Map Data Available')),
 
+                      // Floor / Level Selector Chip (Part D)
+                      _buildFloorSelectorChip(),
+
+                      // Persistent Destination / Live ETA Card in Fullscreen Heading-Up Mode (Part C)
+                      if (isFullscreen) _buildPersistentNavigationCard(),
+
+                      // Floor Transition Prompt Banner Overlay
+                      if (_floorTransitionPromptNode != null &&
+                          _proximityPromptObject == null &&
+                          !_isObjectDetailSheetOpen)
+                        Positioned(
+                          top: 16,
+                          left: 16,
+                          right: 16,
+                          child: _buildFloorTransitionBanner(),
+                        ),
+
                       // Proximity Prompt Banner Overlay (Part A)
-                      if (_proximityPromptObject != null && !_isObjectDetailSheetOpen)
+                      if (_proximityPromptObject != null &&
+                          !_isObjectDetailSheetOpen)
                         Positioned(
                           top: 16,
                           left: 16,
@@ -3027,11 +3722,17 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                           heading: _compassHeading,
                           size: 46.0,
                           onTap: _recenterMap,
+                          onLongPress: _toggleMapOrientation,
+                          tooltipMessage: isHeadingUp
+                              ? 'Compass: ${_compassHeading.toStringAsFixed(0)}° • Rotating Navigation (Tap to Recenter, Long-press for North-Up)'
+                              : 'Compass: ${_compassHeading.toStringAsFixed(0)}° • North-Up (Tap to Recenter, Long-press for Rotating)',
                         ),
                       ),
 
-                      // Explicit "Start Navigation" Button (Part I)
-                      if (!isNavigationActive && currentFloorPlan != null)
+                      // Explicit "Start Navigation" / "End Navigation" Button Swap (Part I)
+                      // In normal mode with active navigation, NavigationRoutePanel handles active navigation controls at the bottom.
+                      if (currentFloorPlan != null &&
+                          (!isNavigationActive || isFullscreen))
                         Positioned(
                           bottom: 24,
                           left: 48,
@@ -3040,10 +3741,20 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                             child: Material(
                               elevation: 6,
                               borderRadius: BorderRadius.circular(30),
-                              color: const Color(0xFF4338CA),
+                              color: isNavigationActive
+                                  ? const Color(0xFFDC2626) // Red-600 for End
+                                  : const Color(
+                                      0xFF4338CA,
+                                    ), // Indigo-700 for Start
                               child: InkWell(
-                                key: const Key('start_navigation_button'),
-                                onTap: _startNavigationManually,
+                                key: Key(
+                                  isNavigationActive
+                                      ? 'end_navigation_button'
+                                      : 'start_navigation_button',
+                                ),
+                                onTap: isNavigationActive
+                                    ? _endNavigation
+                                    : _startNavigationManually,
                                 borderRadius: BorderRadius.circular(30),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -3062,16 +3773,20 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
-                                    children: const [
+                                    children: [
                                       Icon(
-                                        LucideIcons.navigation,
+                                        isNavigationActive
+                                            ? LucideIcons.circleStop
+                                            : LucideIcons.navigation,
                                         color: Colors.white,
                                         size: 18,
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Text(
-                                        'Start Navigation',
-                                        style: TextStyle(
+                                        isNavigationActive
+                                            ? 'End Navigation'
+                                            : 'Start Navigation',
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
@@ -3205,85 +3920,95 @@ class _PhysicalMuseumScreenState extends State<PhysicalMuseumScreen> {
 
                 // Nearby / Discovery Panel OR Bottom Navigation Route Panel
                 if (!isFullscreen)
-                      currentRoute != null && destinationNode != null
-                          ? NavigationRoutePanel(
-                              destinationNode: destinationNode!,
-                              currentRoute: currentRoute!,
-                              startLocationText:
-                                  customStartNode?.name ??
-                                  (currentPosition?.currentNodeId != null
-                                      ? 'Live Fused Position'
-                                      : 'Main Entrance'),
-                              nearbyNodes: _nearbyNodes,
-                              onSelectNearbyNode: (n) {
-                                if (n.objectId != null) {
-                                  try {
-                                    final obj = objects.firstWhere((o) => o.id == n.objectId);
+                  currentRoute != null && destinationNode != null
+                      ? NavigationRoutePanel(
+                          destinationNode: destinationNode!,
+                          currentRoute: currentRoute!,
+                          startLocationText:
+                              customStartNode?.name ??
+                              (currentPosition?.currentNodeId != null
+                                  ? 'Live Fused Position'
+                                  : 'Main Entrance'),
+                          nearbyNodes: _nearbyNodes,
+                          onSelectNearbyNode: (n) {
+                            if (n.objectId != null) {
+                              try {
+                                final obj = objects.firstWhere(
+                                  (o) => o.id == n.objectId,
+                                );
+                                _showObjectDetail(obj);
+                              } catch (_) {
+                                _startSelectiveNavigation(n);
+                              }
+                            } else {
+                              _startSelectiveNavigation(n);
+                            }
+                          },
+                          onCancel: () {
+                            setState(() {
+                              currentRoute = null;
+                              destinationNode = null;
+                              isTourActive = false;
+                              isNavigationActive = false;
+                              positionService.stopSimulation();
+                              positionService.stopPdr();
+                            });
+                          },
+                          onEditStartNode: _showStartNodePickerModal,
+                          onViewSteps: _showTurnByTurnStepsModal,
+                          onScanArtifact: _openScanner,
+                          onMarkVisited: () {
+                            setState(() {
+                              scanResult = 'arrived';
+                              currentRoute = null;
+                              positionService.stopSimulation();
+                            });
+                            if (isTourActive &&
+                                tourStops.isNotEmpty &&
+                                destinationNode?.id == tourStops.first) {
+                              tourStops.removeAt(0);
+                              if (destinationNode?.objectId != null) {
+                                try {
+                                  final obj = objects.firstWhere(
+                                    (o) => o.id == destinationNode!.objectId,
+                                  );
+                                  if (!_hasAlreadyPopped(
+                                        obj,
+                                        destinationNode,
+                                      ) &&
+                                      !_isObjectDetailSheetOpen) {
                                     _showObjectDetail(obj);
-                                  } catch (_) {
-                                    _startSelectiveNavigation(n);
                                   }
-                                } else {
-                                  _startSelectiveNavigation(n);
-                                }
-                              },
-                              onCancel: () {
-                                setState(() {
-                                  currentRoute = null;
-                                  destinationNode = null;
-                                  isTourActive = false;
-                                  isNavigationActive = false;
-                                  positionService.stopSimulation();
-                                  positionService.stopPdr();
-                                });
-                              },
-                              onEditStartNode: _showStartNodePickerModal,
-                              onViewSteps: _showTurnByTurnStepsModal,
-                              onScanArtifact: _openScanner,
-                              onMarkVisited: () {
-                                setState(() {
-                                  scanResult = 'arrived';
-                                  currentRoute = null;
-                                  positionService.stopSimulation();
-                                });
-                                if (isTourActive &&
-                                    tourStops.isNotEmpty &&
-                                    destinationNode?.id == tourStops.first) {
-                                  tourStops.removeAt(0);
-                                  if (destinationNode?.objectId != null) {
-                                    try {
-                                      final obj = objects.firstWhere(
-                                        (o) => o.id == destinationNode!.objectId,
-                                      );
-                                      _showObjectDetail(obj);
-                                    } catch (_) {
-                                      if (mounted && isTourActive) {
-                                        _routeToNextTourStop();
-                                      }
-                                    }
-                                  } else {
-                                    if (mounted && isTourActive) {
-                                      _routeToNextTourStop();
-                                    }
+                                } catch (_) {
+                                  if (mounted && isTourActive) {
+                                    _routeToNextTourStop();
                                   }
                                 }
-                                setState(() {
-                                  destinationNode = null;
-                                });
-                              },
-                            )
-                          : NearbyAttractionsPanel(
-                              nearbyNodes: _nearbyNodes,
-                              hasPosition: currentPosition != null && pathfindingService != null,
-                              activeDestinationId: destinationNode?.id,
-                              onNodeTap: _startSelectiveNavigation,
-                              museums: museums,
-                              selectedMuseum: selectedMuseum,
-                              onSelectMuseum: (val) {
-                                setState(() => selectedMuseum = val);
-                                if (val != null) _handleManualMuseumSelection();
-                              },
-                            ),
+                              } else {
+                                if (mounted && isTourActive) {
+                                  _routeToNextTourStop();
+                                }
+                              }
+                            }
+                            setState(() {
+                              destinationNode = null;
+                            });
+                          },
+                        )
+                      : NearbyAttractionsPanel(
+                          nearbyNodes: _nearbyNodes,
+                          hasPosition:
+                              currentPosition != null &&
+                              pathfindingService != null,
+                          activeDestinationId: destinationNode?.id,
+                          onNodeTap: _startSelectiveNavigation,
+                          museums: museums,
+                          selectedMuseum: selectedMuseum,
+                          onSelectMuseum: (val) {
+                            setState(() => selectedMuseum = val);
+                            if (val != null) _handleManualMuseumSelection();
+                          },
+                        ),
               ], // End of Column children
             ), // End of Column
           ], // End of Stack children

@@ -5,12 +5,24 @@ from app.extensions import db
 collection_bp = Blueprint('collection', __name__)
 
 def serialize_collection(c):
+    obj_count = len(c.objects) if hasattr(c, 'objects') and c.objects else 0
     return {
         "id": c.id,
         "museum_id": c.museum_id,
+        "museum": {
+            "id": c.museum.id,
+            "name": c.museum.name,
+            "location": c.museum.location,
+            "image": c.museum.image
+        } if c.museum else None,
+        "museum_name": c.museum.name if c.museum else None,
+        "museum_location": c.museum.location if c.museum else None,
+        "museum_image": c.museum.image if c.museum else None,
         "name": c.name,
         "description": c.description,
-        "image": c.image
+        "image": c.image,
+        "objectCount": obj_count,
+        "object_count": obj_count
     }
 
 @collection_bp.route('/collections', methods=['GET'])

@@ -5,9 +5,23 @@ from app.extensions import db
 exhibition_bp = Blueprint('exhibition', __name__)
 
 def serialize_exhibition(e):
+    obj_count = len(e.objects) if hasattr(e, 'objects') and e.objects else 0
+    obj_ids = [o.id for o in e.objects] if hasattr(e, 'objects') and e.objects else []
     return {
         "id": e.id,
         "museum_id": e.museum_id,
+        "museum": {
+            "id": e.museum.id,
+            "name": e.museum.name,
+            "location": e.museum.location,
+            "latitude": e.museum.latitude,
+            "longitude": e.museum.longitude,
+            "image": e.museum.image
+        } if e.museum else None,
+        "museum_name": e.museum.name if e.museum else None,
+        "museum_location": e.museum.location if e.museum else None,
+        "museum_latitude": e.museum.latitude if e.museum else None,
+        "museum_longitude": e.museum.longitude if e.museum else None,
         "title": e.title,
         "subtitle": e.subtitle,
         "description": e.description,
@@ -19,7 +33,13 @@ def serialize_exhibition(e):
         "location": e.location,
         "start_date": e.start_date.isoformat() if e.start_date else None,
         "end_date": e.end_date.isoformat() if e.end_date else None,
-        "featured": e.featured
+        "startDate": e.start_date.isoformat() if e.start_date else None,
+        "endDate": e.end_date.isoformat() if e.end_date else None,
+        "featured": e.featured,
+        "objectCount": obj_count,
+        "object_count": obj_count,
+        "objectIds": obj_ids,
+        "object_ids": obj_ids
     }
 
 @exhibition_bp.route('/exhibitions', methods=['GET'])

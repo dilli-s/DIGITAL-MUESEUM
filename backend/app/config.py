@@ -32,5 +32,5 @@ class Config:
     # CORS
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
     
-    # Security limits
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max request size
+    # Security limits — bumped for panorama uploads (full-res 360° images can be 50-200 MB)
+    MAX_CONTENT_LENGTH = 256 * 1024 * 1024  # 256 MB max request size

@@ -1,0 +1,14 @@
+{
+  "originalWidth": 763,
+  "originalHeight": 339,
+  "tileSize": 512,
+  "levels": [
+    {
+      "level": 0,
+      "width": 512,
+      "height": 256,
+      "cols": 1,
+      "rows": 1
+    }
+  ]
+}

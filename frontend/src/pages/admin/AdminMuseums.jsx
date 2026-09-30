@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getAdminMuseums, createAdminMuseum, updateAdminMuseum, deleteAdminMuseum, uploadFile } from '../../services/api';
-import { Plus, Edit, Trash2, X, AlertTriangle, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, X, AlertTriangle, MapPin, QrCode, Download, Printer } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 
 const AdminMuseums = () => {

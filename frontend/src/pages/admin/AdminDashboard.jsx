@@ -33,7 +33,7 @@ const AdminDashboard = () => {
     { label: 'Objects', count: stats.objects, icon: Target, link: '/admin/objects', color: 'from-rose-500 to-red-500' },
     { label: 'Learning', count: stats.learning, icon: BookOpen, link: '/admin/learning', color: 'from-indigo-500 to-blue-500' },
     { label: 'Coordinates', count: 'Pin', icon: Compass, link: '/admin/coordinates', color: 'from-teal-600 to-cyan-500' },
-    { label: 'GPS Dashboard', count: 'Live', icon: Crosshair, link: '/admin/gps-dashboard', color: 'from-blue-600 to-indigo-500' },
+    { label: 'Virtual Tour', count: '360°', icon: Map, link: '/admin/virtual-tour', color: 'from-violet-600 to-purple-400' },
     { label: 'Stories', count: stats.stories, icon: FileText, link: '/admin/stories', color: 'from-fuchsia-500 to-purple-500' },
     { label: 'Activities', count: stats.activities, icon: ActivityIcon, link: '/admin/activities', color: 'from-sky-500 to-cyan-300' },
     { label: 'Users', count: stats.users, icon: Users, link: '/admin/users', color: 'from-slate-500 to-slate-400' },

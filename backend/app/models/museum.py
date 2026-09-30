@@ -48,3 +48,15 @@ class Museum(BaseModel):
     collections = db.relationship('Collection', back_populates='museum', cascade='all, delete-orphan')
     exhibitions = db.relationship('Exhibition', back_populates='museum', cascade='all, delete-orphan')
     objects = db.relationship('MuseumObject', back_populates='museum', cascade='all, delete-orphan')
+
+    def serialize(self):
+        data = super().serialize()
+        data["galleryCount"] = len(self.galleries) if hasattr(self, 'galleries') and self.galleries else 0
+        data["gallery_count"] = data["galleryCount"]
+        data["collectionCount"] = len(self.collections) if hasattr(self, 'collections') and self.collections else 0
+        data["collection_count"] = data["collectionCount"]
+        data["objectCount"] = len(self.objects) if hasattr(self, 'objects') and self.objects else 0
+        data["object_count"] = data["objectCount"]
+        data["exhibitionCount"] = len(self.exhibitions) if hasattr(self, 'exhibitions') and self.exhibitions else 0
+        data["exhibition_count"] = data["exhibitionCount"]
+        return data

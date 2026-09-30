@@ -1,95 +1,132 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getMuseums } from '../../services/api';
-import { MapPin, Image as ImageIcon, Box } from 'lucide-react';
+import { MapPin, ArrowUpRight, Landmark } from 'lucide-react';
 import { getMediaUrl } from '../../utils/media';
-
-const BuildingPlaceholder = () => (
-  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-400">
-    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-    <path d="M9 22v-4h6v4"></path>
-    <path d="M8 6h.01"></path>
-    <path d="M16 6h.01"></path>
-    <path d="M12 6h.01"></path>
-    <path d="M12 10h.01"></path>
-    <path d="M12 14h.01"></path>
-    <path d="M16 10h.01"></path>
-    <path d="M16 14h.01"></path>
-    <path d="M8 10h.01"></path>
-    <path d="M8 14h.01"></path>
-  </svg>
-);
 
 const FeaturedMuseums = () => {
   const [museums, setMuseums] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getMuseums({ per_page: 3 })
-      .then(res => setMuseums(res.data || []))
-      .catch(console.error);
+    getMuseums({ per_page: 8 })
+      .then(res => {
+        setMuseums(res.data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching museums:', err);
+        setMuseums([]);
+        setLoading(false);
+      });
   }, []);
 
-  if (museums.length === 0) return null;
+  if (!loading && museums.length === 0) {
+    return null;
+  }
 
   return (
-    <section className="py-16">
-      <div className="flex justify-between items-end mb-10">
+    <section className="py-8 sm:py-12 relative">
+      {/* Header with Museum Filigree */}
+      <div className="flex flex-col sm:flex-row justify-between sm:items-end mb-8 sm:mb-10 gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-neutral-900">Featured Museums</h2>
-          <p className="mt-2 text-neutral-600">Discover top cultural institutions.</p>
-        </div>
-        <Link to="/museums" className="hidden sm:block text-sm font-semibold text-neutral-900 hover:underline">
-          View all <span aria-hidden="true">&rarr;</span>
-        </Link>
-      </div>
-
-      <div className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {museums.map((museum) => (
-          <div key={museum.id} className="w-[85vw] sm:w-auto shrink-0 snap-center group bg-white rounded-2xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-lg transition-all flex flex-col">
-            <div className="h-48 bg-neutral-200 relative overflow-hidden">
-              {museum.image ? (
-                <img src={getMediaUrl(museum.image)} alt={museum.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-tr from-neutral-300 to-neutral-100 flex items-center justify-center">
-                  <BuildingPlaceholder />
-                </div>
-              )}
-            </div>
-            <div className="p-6 flex-grow flex flex-col">
-              <h3 className="text-xl font-bold text-neutral-900 mb-1">{museum.name}</h3>
-              <div className="flex items-center text-sm text-neutral-500 mb-4">
-                <MapPin className="w-4 h-4 mr-1" />
-                {museum.location}
-              </div>
-              <p className="text-neutral-600 text-sm mb-6 flex-grow line-clamp-3">
-                {museum.description}
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4 border-t border-neutral-100 pt-4 mb-6">
-                <div className="flex items-center text-sm text-neutral-600">
-                  <ImageIcon className="w-4 h-4 mr-2 text-neutral-400" />
-                  <span>Galleries</span>
-                </div>
-                <div className="flex items-center text-sm text-neutral-600">
-                  <Box className="w-4 h-4 mr-2 text-neutral-400" />
-                  <span>Objects</span>
-                </div>
-              </div>
-
-              <Link 
-                to={`/museums/${museum.id}`} 
-                className="w-full inline-flex justify-center rounded-md bg-neutral-50 px-4 py-2 text-sm font-semibold text-neutral-900 border border-neutral-200 hover:bg-neutral-100 transition-colors"
-              >
-                EXPLORE
-              </Link>
-            </div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-6 h-[1px] bg-[#c89b3c]" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#8f6826] font-['Cinzel']">
+              Sanctuaries of Heritage
+            </span>
+            <span className="w-6 h-[1px] bg-[#c89b3c]" />
           </div>
-        ))}
-      </div>
-      <div className="mt-8 sm:hidden flex justify-center">
-        <Link to="/museums" className="text-sm font-semibold text-neutral-900 hover:underline">
-          View all museums <span aria-hidden="true">&rarr;</span>
+          <h2 className="font-['Cinzel'] font-bold text-2xl sm:text-3xl text-[#231a12] tracking-tight flex items-center gap-2.5">
+            Featured Museums
+          </h2>
+          <p className="font-['Cormorant_Garamond'] italic text-base sm:text-lg text-[#6f5b45] mt-1">
+            Step inside the world's most renowned architectural vaults and research repositories
+          </p>
+        </div>
+
+        <Link 
+          to="/museums" 
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#bfae95] bg-[#fbf7ee] hover:bg-[#35281b] hover:border-[#35281b] text-[#5c462e] hover:text-[#f7efe3] text-xs font-semibold tracking-wider uppercase shadow-sm transition-all duration-300 group self-start sm:self-auto"
+        >
+          <span>View All Sanctuaries</span>
+          <ArrowUpRight className="w-3.5 h-3.5 text-[#c89b3c] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
         </Link>
+      </div>
+
+      {/* Grid of Refined Heritage Museum Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {museums.map((museum, idx) => {
+          const imgSrc = museum.image 
+            ? (museum.image.startsWith('http') ? museum.image : getMediaUrl(museum.image))
+            : '/images/hero_museum_hall.jpg';
+
+          const hallCode = `Wing ${['I', 'II', 'III', 'IV', 'V', 'VI'][idx % 6]}`;
+          const curationTag = museum.category || 'Permanent Archive';
+
+          return (
+            <Link
+              key={museum.id}
+              to={`/museums/${museum.id}`}
+              className="group relative rounded-2xl overflow-hidden bg-[#fdfbf7] border-2 border-[#d8c8b0] hover:border-[#8f6826] shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between text-left"
+            >
+              {/* Card Image Area */}
+              <div className="relative h-52 sm:h-56 overflow-hidden bg-[#241a10]">
+                <img
+                  src={imgSrc}
+                  alt={museum.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                  loading="lazy"
+                />
+
+                {/* Soft Vignette Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1b140c]/80 via-[#1b140c]/20 to-transparent" />
+
+                {/* Wing Badge on Top Left */}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1b140c]/85 border border-[#c89b3c]/50 text-[#f7efe3] text-[10px] font-['Cinzel'] font-bold tracking-wider uppercase">
+                  <Landmark className="w-3 h-3 text-[#e5c158]" />
+                  <span>{hallCode}</span>
+                </div>
+
+                {/* Subtle Hover Action Pill Top Right */}
+                <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-[#1b140c]/80 border border-[#c89b3c]/40 flex items-center justify-center text-[#e5c158] group-hover:bg-[#8f6826] group-hover:text-[#fff8ea] group-hover:scale-110 transition-all duration-300 shadow-md">
+                  <ArrowUpRight className="w-4 h-4" />
+                </div>
+
+                {/* Bottom Tag on Image */}
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[10px] font-mono tracking-wider uppercase text-[#fdfbf7] drop-shadow">
+                  <span className="flex items-center gap-1.5 bg-[#1b140c]/70 px-2 py-0.5 rounded-full border border-white/10 backdrop-blur-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#c89b3c]" />
+                    {curationTag}
+                  </span>
+                  <span className="text-[#dfb758] font-bold">EST. ARCHIVE</span>
+                </div>
+              </div>
+
+              {/* Museum Info Details Base */}
+              <div className="p-5 flex flex-col justify-between flex-grow">
+                <div>
+                  {/* Museum Name */}
+                  <h3 className="font-['Cinzel'] font-bold text-base sm:text-lg text-[#241a10] group-hover:text-[#8f6826] transition-colors leading-snug line-clamp-2 min-h-[3rem]">
+                    {museum.name}
+                  </h3>
+
+                  {/* Location with Pin */}
+                  <div className="flex items-center text-xs text-[#6e5842] mt-2">
+                    <MapPin className="w-3.5 h-3.5 mr-1.5 text-[#8f6826] flex-shrink-0" />
+                    <span className="truncate">{museum.location || 'Heritage Gallery'}</span>
+                  </div>
+                </div>
+
+                {/* Bottom Footer Accent */}
+                <div className="mt-4 pt-3 border-t border-[#ede3d1] flex items-center justify-between text-xs font-semibold text-[#8f6826] group-hover:text-[#241a10] transition-colors">
+                  <span className="font-['Cinzel'] tracking-wider uppercase text-[11px]">Enter Sanctuary</span>
+                  <span className="text-[#c89b3c] font-bold group-hover:translate-x-1 transition-transform">&rarr;</span>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

@@ -47,3 +47,57 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+val setupAdbPortForwarding = tasks.register("setupAdbPortForwarding") {
+    doLast {
+        val ports = listOf(5000, 5001, 5173)
+        val adbPath = try {
+            android.adbExecutable.absolutePath
+        } catch (_: Throwable) {
+            "adb"
+        }
+
+        try {
+            val process = ProcessBuilder(adbPath, "devices").start()
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+
+            val deviceIds = output.lines()
+                .drop(1)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() && it.contains("\tdevice") }
+                .map { it.split("\t")[0].trim() }
+
+            if (deviceIds.isEmpty()) {
+                ports.forEach { port ->
+                    ProcessBuilder(adbPath, "reverse", "tcp:$port", "tcp:$port")
+                        .redirectErrorStream(true)
+                        .start()
+                        .waitFor()
+                }
+            } else {
+                deviceIds.forEach { deviceId ->
+                    ports.forEach { port ->
+                        ProcessBuilder(adbPath, "-s", deviceId, "reverse", "tcp:$port", "tcp:$port")
+                            .redirectErrorStream(true)
+                            .start()
+                            .waitFor()
+                    }
+                    println("[ADB] Configured adb reverse port forwarding for device $deviceId (ports: $ports)")
+                }
+            }
+        } catch (_: Throwable) {
+            // Ignore failure if adb is not found or device is disconnected
+        }
+    }
+}
+
+tasks.matching {
+    it.name.startsWith("assemble") ||
+    it.name.startsWith("compile") ||
+    it.name.startsWith("install") ||
+    it.name == "preBuild"
+}.configureEach {
+    dependsOn(setupAdbPortForwarding)
+}
+

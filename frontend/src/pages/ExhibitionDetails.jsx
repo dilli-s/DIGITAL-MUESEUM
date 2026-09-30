@@ -5,6 +5,7 @@ import ObjectCard from '../components/object/ObjectCard';
 import ExhibitionSearch from '../components/exhibition/ExhibitionSearch';
 import ExhibitionFilters from '../components/exhibition/ExhibitionFilters';
 import { ChevronRight, ArrowLeft, Calendar, Info, RefreshCw, LayoutDashboard } from 'lucide-react';
+import { getMediaUrl } from '../utils/media';
 
 const ExhibitionDetails = () => {
   const { museumId, exhibitionId } = useParams();
@@ -214,8 +215,19 @@ const ExhibitionDetails = () => {
             </Link>
           </div>
         </div>
-        <div className="hidden md:flex relative z-10 w-1/3 justify-center items-center">
-           <Calendar className="w-40 h-40 text-neutral-700 opacity-50" />
+        <div className="hidden md:flex relative z-10 w-1/3 justify-center items-center overflow-hidden rounded-xl min-h-[200px]">
+           {(exhibition.image || exhibition.image_url) ? (
+             <img 
+               src={getMediaUrl(exhibition.image || exhibition.image_url)} 
+               alt={exhibition.title}
+               className="w-full h-full object-cover rounded-xl shadow-md max-h-[300px]"
+               onError={(e) => {
+                 e.target.style.display = 'none';
+               }}
+             />
+           ) : (
+             <Calendar className="w-40 h-40 text-neutral-700 opacity-50" />
+           )}
         </div>
       </section>
 
@@ -319,46 +331,58 @@ const ExhibitionDetails = () => {
       )}
 
       {/* Object Browsing Section */}
-      <section id="exhibition-objects" className="mb-16 scroll-mt-8">
-        <h2 className="text-2xl font-bold text-neutral-900 mb-6">
-          {searchTerm === '' && selectedCategory === 'All' ? 'All Exhibition Objects' : 'Search Results'}
-        </h2>
-        
-        {/* Object Search and Filters */}
-        <div className="space-y-6 mb-8">
-          <ExhibitionSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} placeholder="Search objects in this exhibition..." />
+      {!(featuredObjects.length > 0 && searchTerm === '' && selectedCategory === 'All' && filteredObjects.every(o => o.featured)) && (
+        <section id="exhibition-objects" className="mb-16 scroll-mt-8">
+          <h2 className="text-2xl font-bold text-neutral-900 mb-6">
+            {searchTerm === '' && selectedCategory === 'All'
+              ? (featuredObjects.length > 0 ? 'More Exhibition Objects' : 'All Exhibition Objects')
+              : 'Search Results'}
+          </h2>
           
-          <ExhibitionFilters 
-            filters={objectCategories} 
-            selectedFilter={selectedCategory} 
-            setSelectedFilter={setSelectedCategory} 
-          />
-        </div>
+          {/* Object Search and Filters */}
+          <div className="space-y-6 mb-8">
+            <ExhibitionSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} placeholder="Search objects in this exhibition..." />
+            
+            <ExhibitionFilters 
+              filters={objectCategories} 
+              selectedFilter={selectedCategory} 
+              setSelectedFilter={setSelectedCategory} 
+            />
+          </div>
 
-        {/* Object Grid */}
-        {exhibitionObjects.length === 0 ? (
-          <div className="text-center py-20 bg-neutral-50 rounded-2xl border border-neutral-200 border-dashed">
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No objects are currently associated with this exhibition.</h3>
-          </div>
-        ) : filteredObjects.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredObjects.map(object => (
-              <ObjectCard key={object.id} objectData={object} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20 bg-neutral-50 rounded-2xl border border-neutral-200 border-dashed">
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No objects found</h3>
-            <p className="text-neutral-500 mb-6">Try changing your search or filters.</p>
-            <button
-              onClick={() => { setSearchTerm(''); setSelectedCategory('All'); }}
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-neutral-900 hover:bg-neutral-800 focus:outline-none"
-            >
-              Clear Filters
-            </button>
-          </div>
-        )}
-      </section>
+          {/* Object Grid */}
+          {exhibitionObjects.length === 0 ? (
+            <div className="text-center py-20 bg-neutral-50 rounded-2xl border border-neutral-200 border-dashed">
+              <h3 className="text-lg font-medium text-neutral-900 mb-2">No objects are currently associated with this exhibition.</h3>
+            </div>
+          ) : (
+            (() => {
+              const displayList = (featuredObjects.length > 0 && searchTerm === '' && selectedCategory === 'All')
+                ? filteredObjects.filter(o => !featuredObjects.some(f => f.id === o.id || f.name.toLowerCase() === o.name.toLowerCase()))
+                : filteredObjects;
+
+              return displayList.length > 0 ? (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {displayList.map(object => (
+                    <ObjectCard key={object.id} objectData={object} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 bg-neutral-50 rounded-2xl border border-neutral-200 border-dashed">
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">No additional objects found</h3>
+                  <p className="text-neutral-500 mb-6">Try changing your search or filters.</p>
+                  <button
+                    onClick={() => { setSearchTerm(''); setSelectedCategory('All'); }}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-neutral-900 hover:bg-neutral-800 focus:outline-none"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              );
+            })()
+          )}
+        </section>
+      )}
 
       {/* Footer Navigation */}
       <section className="py-8 border-t border-neutral-200 flex items-center justify-between">

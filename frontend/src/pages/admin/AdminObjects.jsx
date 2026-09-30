@@ -702,7 +702,22 @@ const AdminObjects = () => {
                   <h3 className="font-semibold text-lg border-b pb-2">Organization</h3>
                   <div>
                     <label className="block text-sm font-medium text-neutral-700">Museum *</label>
-                    <select required value={formData.museum_id} onChange={e => setFormData({...formData, museum_id: e.target.value, gallery_id: '', collection_id: ''})} className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border">
+                    <select 
+                      required 
+                      value={formData.museum_id} 
+                      onChange={e => {
+                        const mid = e.target.value;
+                        const matchingGals = galleries.filter(g => String(g.museum_id) === String(mid));
+                        const defaultGalId = matchingGals.length > 0 ? String(matchingGals[0].id) : '';
+                        setFormData({
+                          ...formData, 
+                          museum_id: mid, 
+                          gallery_id: defaultGalId, 
+                          collection_id: ''
+                        });
+                      }} 
+                      className="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-neutral-500 focus:ring-neutral-500 p-2 border"
+                    >
                       <option value="">Select a Museum</option>
                       {museums.map(m => (
                         <option key={m.id} value={m.id}>{m.name}</option>

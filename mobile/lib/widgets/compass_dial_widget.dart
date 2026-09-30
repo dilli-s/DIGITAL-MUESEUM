@@ -7,20 +7,25 @@ class CompassDialWidget extends StatelessWidget {
   final double heading;
   final double size;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final String? tooltipMessage;
 
   const CompassDialWidget({
     super.key,
     required this.heading,
     this.size = 46.0,
     this.onTap,
+    this.onLongPress,
+    this.tooltipMessage,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Tooltip(
-        message: 'Compass: ${heading.toStringAsFixed(0)}° • Tap to Recenter',
+        message: tooltipMessage ?? 'Compass: ${heading.toStringAsFixed(0)}° • Tap to Recenter • Long-press to Toggle Rotation',
         child: Container(
           width: size,
           height: size,

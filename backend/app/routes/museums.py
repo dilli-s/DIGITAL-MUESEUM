@@ -34,9 +34,13 @@ def serialize_museum(m):
         "info_desk": m.info_desk,
         "cafe_restrooms": m.cafe_restrooms,
         "galleryCount": len(m.galleries) if hasattr(m, 'galleries') and m.galleries else 0,
+        "gallery_count": len(m.galleries) if hasattr(m, 'galleries') and m.galleries else 0,
         "collectionCount": len(m.collections) if hasattr(m, 'collections') and m.collections else 0,
+        "collection_count": len(m.collections) if hasattr(m, 'collections') and m.collections else 0,
         "objectCount": len(m.objects) if hasattr(m, 'objects') and m.objects else 0,
-        "exhibitionCount": len(m.exhibitions) if hasattr(m, 'exhibitions') and m.exhibitions else 0
+        "object_count": len(m.objects) if hasattr(m, 'objects') and m.objects else 0,
+        "exhibitionCount": len(m.exhibitions) if hasattr(m, 'exhibitions') and m.exhibitions else 0,
+        "exhibition_count": len(m.exhibitions) if hasattr(m, 'exhibitions') and m.exhibitions else 0
     }
 
 @museum_bp.route('/museums', methods=['GET'])

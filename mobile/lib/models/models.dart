@@ -108,10 +108,45 @@ class Gallery {
   };
 }
 
+class MuseumCollection {
+  final int id;
+  final int museumId;
+  final String name;
+  final String? description;
+  final String? imageUrl;
+
+  MuseumCollection({
+    required this.id,
+    required this.museumId,
+    required this.name,
+    this.description,
+    this.imageUrl,
+  });
+
+  factory MuseumCollection.fromJson(Map<String, dynamic> json) {
+    return MuseumCollection(
+      id: json['id'],
+      museumId: json['museum_id'] ?? 0,
+      name: json['name'] ?? '',
+      description: json['description'],
+      imageUrl: json['image'] ?? json['image_url'],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'museum_id': museumId,
+    'name': name,
+    'description': description,
+    'image': imageUrl,
+  };
+}
+
 class MuseumObject {
   final int id;
   final int museumId;
   final int galleryId;
+  final int? collectionId;
   final String name;
   final String? localName;
   final String? commonName;
@@ -133,6 +168,7 @@ class MuseumObject {
     required this.id,
     required this.museumId,
     required this.galleryId,
+    this.collectionId,
     required this.name,
     this.localName,
     this.commonName,
@@ -156,6 +192,7 @@ class MuseumObject {
       id: json['id'],
       museumId: json['museum_id'] ?? 0,
       galleryId: json['gallery_id'] ?? 0,
+      collectionId: json['collection_id'],
       name: json['name'] ?? '',
       localName: json['local_name'],
       commonName: json['common_name'],
@@ -168,12 +205,17 @@ class MuseumObject {
       facts:
           (json['facts'] as List?)?.map((fact) => fact.toString()).toList() ??
           const [],
-      images:
-          (json['images'] as List?)
+      images: (json['images'] as List?)
               ?.map((image) => image.toString())
               .toList() ??
-          const [],
-      image: json['image'],
+          (json['image'] != null
+              ? [json['image'].toString()]
+              : (json['image_url'] != null ? [json['image_url'].toString()] : const [])),
+      image: json['image'] ??
+          json['image_url'] ??
+          ((json['images'] is List && (json['images'] as List).isNotEmpty)
+              ? (json['images'] as List).first.toString()
+              : null),
       audioUrl: json['audio_url'],
       videoUrl: json['video_url'],
       model3dUrl: json['model_3d_url'],
@@ -185,6 +227,7 @@ class MuseumObject {
     'id': id,
     'museum_id': museumId,
     'gallery_id': galleryId,
+    'collection_id': collectionId,
     'name': name,
     'local_name': localName,
     'common_name': commonName,

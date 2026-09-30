@@ -85,6 +85,28 @@ def create_object():
             lat = None
             lng = None
             
+        # Ensure gallery_id is always resolved to a valid gallery belonging to this museum
+        gallery_id = data.get('gallery_id')
+        target_gallery = None
+        if gallery_id:
+            try:
+                target_gallery = Gallery.query.filter_by(id=int(gallery_id), museum_id=museum.id).first()
+            except (ValueError, TypeError):
+                target_gallery = None
+                
+        if not target_gallery:
+            # Fallback to the first gallery in this museum, or create a default one if none exists
+            target_gallery = Gallery.query.filter_by(museum_id=museum.id).first()
+            if not target_gallery:
+                target_gallery = Gallery(
+                    name="Main Gallery",
+                    description=f"Main Exhibition Gallery for {museum.name}",
+                    museum_id=museum.id,
+                    floor="Ground Floor"
+                )
+                db.session.add(target_gallery)
+                db.session.flush()
+
         obj = MuseumObject(
             name=name,
             local_name=data.get('local_name'),
@@ -95,7 +117,7 @@ def create_object():
             facts=data.get('facts') or [],
             images=data.get('images') or [],
             museum_id=data['museum_id'],
-            gallery_id=data.get('gallery_id') or None,
+            gallery_id=target_gallery.id,
             collection_id=data.get('collection_id') or None,
             image=data.get('image_url') or data.get('image'),
             period=data.get('period'),
@@ -161,8 +183,34 @@ def update_object(object_id):
         if 'significance' in data: obj.significance = data['significance']
         if 'facts' in data: obj.facts = data['facts'] or []
         if 'images' in data: obj.images = data['images'] or []
-        if 'museum_id' in data: obj.museum_id = data['museum_id']
-        if 'gallery_id' in data: obj.gallery_id = data['gallery_id'] or None
+        
+        target_museum_id = data.get('museum_id') or obj.museum_id
+        museum = Museum.query.get(target_museum_id)
+        if not museum:
+            return jsonify({"error": {"code": "NOT_FOUND", "message": "Museum does not exist."}}), 404
+        obj.museum_id = target_museum_id
+
+        if 'gallery_id' in data or 'museum_id' in data:
+            requested_gallery_id = data.get('gallery_id') if 'gallery_id' in data else obj.gallery_id
+            target_gallery = None
+            if requested_gallery_id:
+                try:
+                    target_gallery = Gallery.query.filter_by(id=int(requested_gallery_id), museum_id=target_museum_id).first()
+                except (ValueError, TypeError):
+                    target_gallery = None
+            if not target_gallery:
+                target_gallery = Gallery.query.filter_by(museum_id=target_museum_id).first()
+                if not target_gallery:
+                    target_gallery = Gallery(
+                        name="Main Gallery",
+                        description=f"Main Exhibition Gallery for {museum.name}",
+                        museum_id=target_museum_id,
+                        floor="Ground Floor"
+                    )
+                    db.session.add(target_gallery)
+                    db.session.flush()
+            obj.gallery_id = target_gallery.id
+
         if 'collection_id' in data: obj.collection_id = data['collection_id'] or None
         if 'image_url' in data: obj.image = data['image_url']
         if 'image' in data: obj.image = data['image']

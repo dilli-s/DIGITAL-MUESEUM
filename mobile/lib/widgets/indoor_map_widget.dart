@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -21,11 +22,15 @@ class IndoorMapWidget extends StatefulWidget {
   final Function(MapNode) onNodeTap;
   final Function(double normX, double normY)? onMapLongPress;
   final Function(MapLibreMapController)? onMapCreated;
+  final bool isHeadingUp;
+  final double? heading;
+  final VoidCallback? onUserPanned;
 
   const IndoorMapWidget({
     super.key,
     required this.floorPlan,
     this.currentPosition,
+    this.heading,
     this.routePath = const [],
     this.destinationNode,
     this.allNodes = const [],
@@ -35,15 +40,48 @@ class IndoorMapWidget extends StatefulWidget {
     required this.onNodeTap,
     this.onMapLongPress,
     this.onMapCreated,
+    this.isHeadingUp = false,
+    this.onUserPanned,
   });
 
+  /// Rendering filter: Only artifact-type nodes are visible to visitors as markers.
+  /// Entrance, exit, waypoint, and amenity nodes remain in the graph and pathfinding untouched.
+  static bool isArtifactNode(MapNode node) {
+    final type = node.nodeType.toLowerCase().trim();
+    if (type.contains('entrance') ||
+        type.contains('exit') ||
+        type.contains('stair') ||
+        type.contains('elevator') ||
+        type.contains('restroom') ||
+        type.contains('washroom') ||
+        type.contains('amenity') ||
+        type.contains('cafe') ||
+        type.contains('hospital') ||
+        type.contains('fire')) {
+      return true;
+    }
+    if (type.contains('waypoint') ||
+        type.contains('junction') ||
+        type.contains('corridor') ||
+        type.contains('hallway')) {
+      return false;
+    }
+    if (node.objectId != null) return true;
+    return type.contains('artifact') ||
+        type.contains('exhibit') ||
+        type.contains('object') ||
+        type.contains('painting') ||
+        type.contains('sculpture') ||
+        type.contains('item');
+  }
+
   @override
-  State<IndoorMapWidget> createState() => _IndoorMapWidgetState();
+  State<IndoorMapWidget> createState() => IndoorMapWidgetState();
 }
 
 enum MapDisplayMode { floorPlan, schematicMap }
 
-class _IndoorMapWidgetState extends State<IndoorMapWidget>
+class IndoorMapWidgetState extends State<IndoorMapWidget>
     with TickerProviderStateMixin {
   MapDisplayMode _displayMode = MapDisplayMode.floorPlan;
   final TransformationController _transformController = TransformationController();
@@ -61,6 +99,15 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
   double? _startHeading;
   double? _targetHeading;
   int _lastHeadingUpdateTime = 0;
+
+  late AnimationController _matrixAnimController;
+  Animation<Matrix4>? _matrixAnimation;
+
+  Size _lastViewportSize = Size.zero;
+  double _lastDisplayW = 0;
+  double _lastDisplayH = 0;
+  bool _isUserInteracting = false;
+  Timer? _userInteractionTimer;
 
   @override
   void initState() {
@@ -84,6 +131,9 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
           _startPos!.dx + (_targetPos!.dx - _startPos!.dx) * t,
           _startPos!.dy + (_targetPos!.dy - _startPos!.dy) * t,
         );
+        if (widget.isHeadingUp && !_isUserInteracting && !_matrixAnimController.isAnimating) {
+          _updateHeadingUpTransform();
+        }
       }
     });
 
@@ -101,6 +151,19 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
         double h = (_startHeading! + (_targetHeading! - _startHeading!) * t) % 360.0;
         if (h < 0) h += 360.0;
         _animatedHeading = h;
+        if (widget.isHeadingUp && !_isUserInteracting && !_matrixAnimController.isAnimating) {
+          _updateHeadingUpTransform();
+        }
+      }
+    });
+
+    _matrixAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _matrixAnimController.addListener(() {
+      if (_matrixAnimation != null) {
+        _transformController.value = _matrixAnimation!.value;
       }
     });
 
@@ -122,15 +185,233 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
 
   @override
   void dispose() {
+    _userInteractionTimer?.cancel();
     _positionAnimController.dispose();
     _headingAnimController.dispose();
+    _matrixAnimController.dispose();
     _transformController.dispose();
     super.dispose();
   }
 
+  double _getCurrentHeading() {
+    if (widget.heading != null && !widget.heading!.isNaN) {
+      return widget.heading!;
+    }
+    if (_animatedHeading != null && !_animatedHeading!.isNaN) {
+      return _animatedHeading!;
+    }
+    if (widget.currentPosition != null &&
+        !widget.currentPosition!.heading.isNaN &&
+        widget.currentPosition!.heading != 0) {
+      return widget.currentPosition!.heading;
+    }
+    // Calculate forward angle along navigation route if available
+    if (widget.routePath.length > 1 && widget.currentPosition != null) {
+      final cur = widget.currentPosition!;
+      for (final n in widget.routePath) {
+        if (n.floor == widget.floorPlan.floorNumber) {
+          final dx = n.x - cur.x;
+          final dy = n.y - cur.y;
+          if ((dx * dx + dy * dy) > 0.0001) {
+            double rad = math.atan2(dx, -dy);
+            double deg = rad * 180.0 / math.pi;
+            if (deg < 0) deg += 360.0;
+            return deg;
+          }
+        }
+      }
+    }
+    return widget.currentPosition?.heading ?? 0.0;
+  }
+
+  Matrix4? _computeHeadingUpMatrix() {
+    if (_lastViewportSize == Size.zero || _lastDisplayW == 0 || _lastDisplayH == 0) {
+      return null;
+    }
+    final pos = _animatedPos ??
+        (widget.currentPosition != null
+            ? Offset(widget.currentPosition!.x, widget.currentPosition!.y)
+            : null);
+    final heading = _getCurrentHeading();
+    if (pos == null) return null;
+
+    final double widthPx = widget.floorPlan.widthPx > 0 ? widget.floorPlan.widthPx : 600;
+    final double heightPx = widget.floorPlan.heightPx > 0 ? widget.floorPlan.heightPx : 400;
+
+    final double normX = (pos.dx <= 1.0) ? pos.dx : (pos.dx / widthPx);
+    final double normY = (pos.dy <= 1.0) ? pos.dy : (pos.dy / heightPx);
+
+    final double offsetX = (_lastViewportSize.width - _lastDisplayW) / 2.0;
+    final double offsetY = (_lastViewportSize.height - _lastDisplayH) / 2.0;
+    final double ux = offsetX + (normX * _lastDisplayW);
+    final double uy = offsetY + (normY * _lastDisplayH);
+
+    // Position visitor at 62% down screen (slightly below center, leaving ~62% ahead)
+    final double fx = _lastViewportSize.width / 2.0;
+    final double fy = _lastViewportSize.height * 0.62;
+
+    final double rotRad = -(heading * math.pi / 180.0);
+    final double cosA = math.cos(rotRad).abs();
+    final double sinA = math.sin(rotRad).abs();
+
+    // Dynamically calculate the rotated viewport bounding box extents
+    final double rotatedVpW = (_lastViewportSize.width * cosA) + (_lastViewportSize.height * sinA);
+    final double rotatedVpH = (_lastViewportSize.width * sinA) + (_lastViewportSize.height * cosA);
+
+    // Minimum scale required so that the floor plan covers the rotated viewport bounding box
+    final double coverScale = math.max(
+      rotatedVpW / _lastDisplayW,
+      rotatedVpH / _lastDisplayH,
+    );
+
+    // Dynamic scale ensures full coverage at any angle (scales up on diagonals like 45°
+    // where the rotated bounding box expands to prevent empty background exposure).
+    final double navScale = math.max(2.6, coverScale * 1.35);
+
+    final matrix = Matrix4.identity();
+    matrix.translateByDouble(fx, fy, 0.0, 1.0);
+    matrix.rotateZ(rotRad);
+    matrix.scaleByDouble(navScale, navScale, 1.0, 1.0);
+    matrix.translateByDouble(-ux, -uy, 0.0, 1.0);
+
+    return matrix;
+  }
+
+  void _updateHeadingUpTransform() {
+    final m = _computeHeadingUpMatrix();
+    if (m != null) {
+      _transformController.value = m;
+    }
+  }
+
+  Matrix4? _computeNorthUpCenterMatrix() {
+    if (_lastViewportSize == Size.zero || _lastDisplayW == 0 || _lastDisplayH == 0) {
+      return null;
+    }
+    final pos = _animatedPos ??
+        (widget.currentPosition != null
+            ? Offset(widget.currentPosition!.x, widget.currentPosition!.y)
+            : null);
+    if (pos == null) return Matrix4.identity();
+
+    final double widthPx = widget.floorPlan.widthPx > 0 ? widget.floorPlan.widthPx : 600;
+    final double heightPx = widget.floorPlan.heightPx > 0 ? widget.floorPlan.heightPx : 400;
+
+    final double normX = (pos.dx <= 1.0) ? pos.dx : (pos.dx / widthPx);
+    final double normY = (pos.dy <= 1.0) ? pos.dy : (pos.dy / heightPx);
+
+    final double offsetX = (_lastViewportSize.width - _lastDisplayW) / 2.0;
+    final double offsetY = (_lastViewportSize.height - _lastDisplayH) / 2.0;
+    final double ux = offsetX + (normX * _lastDisplayW);
+    final double uy = offsetY + (normY * _lastDisplayH);
+
+    final double fx = _lastViewportSize.width / 2.0;
+    final double fy = _lastViewportSize.height / 2.0;
+
+    const double navScale = 2.0;
+
+    final matrix = Matrix4.identity();
+    matrix.translateByDouble(fx, fy, 0.0, 1.0);
+    // North-Up: strictly 0 rotation
+    matrix.scaleByDouble(navScale, navScale, 1.0, 1.0);
+    matrix.translateByDouble(-ux, -uy, 0.0, 1.0);
+
+    return matrix;
+  }
+
+  void _animateToNorthUpCenter() {
+    final targetMatrix = _computeNorthUpCenterMatrix();
+    if (targetMatrix == null) return;
+    _matrixAnimation = Matrix4Tween(
+      begin: _transformController.value,
+      end: targetMatrix,
+    ).animate(CurvedAnimation(
+      parent: _matrixAnimController,
+      curve: Curves.easeInOutCubic,
+    ));
+    _matrixAnimController.forward(from: 0.0);
+  }
+
+  void _animateToHeadingUp() {
+    final targetMatrix = _computeHeadingUpMatrix();
+    if (targetMatrix == null) return;
+    _matrixAnimation = Matrix4Tween(
+      begin: _transformController.value,
+      end: targetMatrix,
+    ).animate(CurvedAnimation(
+      parent: _matrixAnimController,
+      curve: Curves.easeInOutCubic,
+    ));
+    _matrixAnimController.forward(from: 0.0);
+  }
+
+  void _animateToOverview() {
+    _matrixAnimation = Matrix4Tween(
+      begin: _transformController.value,
+      end: Matrix4.identity(),
+    ).animate(CurvedAnimation(
+      parent: _matrixAnimController,
+      curve: Curves.easeInOutCubic,
+    ));
+    _matrixAnimController.forward(from: 0.0);
+  }
+
+  void recenter() {
+    _isUserInteracting = false;
+    _userInteractionTimer?.cancel();
+    if (widget.isHeadingUp) {
+      _animateToHeadingUp();
+    } else {
+      _animateToNorthUpCenter();
+    }
+  }
+
+  void resetToOverview() {
+    _isUserInteracting = false;
+    _userInteractionTimer?.cancel();
+    _animateToOverview();
+  }
+
+  @visibleForTesting
+  Matrix4? computeHeadingUpMatrixForTesting() => _computeHeadingUpMatrix();
+
   @override
   void didUpdateWidget(IndoorMapWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (widget.isHeadingUp != oldWidget.isHeadingUp) {
+      _userInteractionTimer?.cancel();
+      if (widget.isHeadingUp) {
+        _isUserInteracting = false;
+        _animateToHeadingUp();
+      } else {
+        _animateToOverview();
+      }
+    }
+
+    if (widget.floorPlan.id != oldWidget.floorPlan.id) {
+      _userInteractionTimer?.cancel();
+      if (widget.isHeadingUp) {
+        _animateToHeadingUp();
+      } else {
+        _animateToOverview();
+      }
+    }
+
+    if (widget.heading != oldWidget.heading) {
+      final double? h = widget.heading;
+      if (h != null && !h.isNaN) {
+        _animatedHeading = h;
+        if (widget.isHeadingUp && !_isUserInteracting && !_matrixAnimController.isAnimating) {
+          _updateHeadingUpTransform();
+        }
+      }
+    }
+
+    if (widget.isHeadingUp && widget.routePath != oldWidget.routePath && widget.routePath.isNotEmpty) {
+      _isUserInteracting = false;
+      _animateToHeadingUp();
+    }
 
     if (widget.currentPosition != oldWidget.currentPosition) {
       final newPos = widget.currentPosition;
@@ -148,6 +429,9 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
           _startPos = newTarget;
           _targetPos = newTarget;
           _animatedPos = newTarget;
+          if (widget.isHeadingUp && !_isUserInteracting) {
+            _updateHeadingUpTransform();
+          }
         } else if (_targetPos != newTarget) {
           // Smooth redirection toward the new confirmed position
           _startPos = _animatedPos ?? newTarget;
@@ -169,6 +453,9 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
           _startHeading = newHeading;
           _targetHeading = newHeading;
           _lastHeadingUpdateTime = now;
+          if (widget.isHeadingUp && !_isUserInteracting) {
+            _updateHeadingUpTransform();
+          }
         } else {
           // Compute shortest angular difference along circular arc [-180, 180]
           double diff = ((newHeading - _animatedHeading! + 540.0) % 360.0) - 180.0;
@@ -316,6 +603,7 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
       color: const Color(0xFFF1F5F9),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
           double displayW = constraints.maxWidth;
           double displayH = displayW / aspectRatio;
 
@@ -324,11 +612,45 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
             displayW = displayH * aspectRatio;
           }
 
+          final bool isInitialLayout = _lastViewportSize == Size.zero;
+          _lastViewportSize = viewportSize;
+          _lastDisplayW = displayW;
+          _lastDisplayH = displayH;
+
+          if (isInitialLayout && widget.isHeadingUp) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && widget.isHeadingUp) {
+                _animateToHeadingUp();
+              }
+            });
+          }
+
           return InteractiveViewer(
             transformationController: _transformController,
             minScale: 0.5,
             maxScale: 6.0,
+            boundaryMargin: const EdgeInsets.all(double.infinity),
             constrained: true,
+            onInteractionStart: (details) {
+              if (widget.isHeadingUp) {
+                _isUserInteracting = true;
+                _userInteractionTimer?.cancel();
+                widget.onUserPanned?.call();
+              }
+            },
+            onInteractionEnd: (details) {
+              if (widget.isHeadingUp) {
+                _userInteractionTimer?.cancel();
+                _userInteractionTimer = Timer(const Duration(milliseconds: 3500), () {
+                  if (mounted && widget.isHeadingUp) {
+                    setState(() {
+                      _isUserInteracting = false;
+                    });
+                    _animateToHeadingUp();
+                  }
+                });
+              }
+            },
             child: Center(
               child: Container(
                 width: displayW,
@@ -387,6 +709,7 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
                             double minThreshold = 0.08;
                             for (var node in widget.allNodes) {
                               if (node.floor != widget.floorPlan.floorNumber) continue;
+                              if (!IndoorMapWidget.isArtifactNode(node)) continue;
                               double nx = (node.x <= 1.0) ? node.x : (node.x / widthPx);
                               double ny = (node.y <= 1.0) ? node.y : (node.y / heightPx);
                               double dist = math.sqrt(math.pow(nx - normX, 2) + math.pow(ny - normY, 2));
@@ -397,6 +720,8 @@ class _IndoorMapWidgetState extends State<IndoorMapWidget>
                             }
                             if (tappedNode != null) {
                               widget.onNodeTap(tappedNode);
+                            } else if (widget.onMapLongPress != null) {
+                              widget.onMapLongPress!(normX.clamp(0.0, 1.0), normY.clamp(0.0, 1.0));
                             }
                           },
                           child: AnimatedBuilder(
@@ -717,59 +1042,155 @@ class _FloorPlanPainter extends CustomPainter {
       }
     }
 
-    final floorNodes =
-        allNodes.where((n) => n.floor == floorPlan.floorNumber).toList();
+    final floorNodes = allNodes
+        .where((n) => n.floor == floorPlan.floorNumber && IndoorMapWidget.isArtifactNode(n))
+        .toList();
     for (var node in floorNodes) {
       final pos = toCanvas(node.x, node.y);
       final isVisited = visitedNodeIds.contains(node.id);
       final isDest = destinationNode != null && destinationNode!.id == node.id;
-      final isEntrance = node.nodeType.contains('entrance');
-      final isExit = node.nodeType.contains('exit');
-      final isAmenity = node.nodeType.contains('restroom') ||
-          node.nodeType.contains('elevator') ||
-          node.nodeType.contains('stairs');
 
-      Color pinColor = const Color(0xFF64748B);
-      double radius = 4.5;
+      final nodeType = node.nodeType.toLowerCase().trim();
+      final isSpecialPlace = nodeType.contains('restroom') ||
+          nodeType.contains('washroom') ||
+          nodeType.contains('cafe') ||
+          nodeType.contains('hospital') ||
+          nodeType.contains('amenity') ||
+          nodeType.contains('exit') ||
+          nodeType.contains('entrance') ||
+          nodeType.contains('stair') ||
+          nodeType.contains('elevator');
 
-      if (isVisited) {
-        // Muted/off state for visited/completed artifact nodes
-        pinColor = const Color(0xFF94A3B8); // Muted slate gray
-        radius = 4.0;
-      } else if (isDest) {
-        pinColor = const Color(0xFFEC4899);
-        radius = 8.0;
-      } else if (isEntrance) {
-        pinColor = const Color(0xFF10B981);
-        radius = 6.5;
-      } else if (isExit) {
-        pinColor = const Color(0xFFEF4444);
-        radius = 6.5;
-      } else if (isAmenity) {
-        pinColor = const Color(0xFF06B6D4);
-        radius = 6.0;
-      } else if (node.objectId != null) {
-        pinColor = isSchematic ? const Color(0xFFD97706) : const Color(0xFFF59E0B);
-        radius = isSchematic ? 6.5 : 5.5;
+      IconData? nodeIcon;
+      if (nodeType.contains('restroom') || nodeType.contains('washroom')) {
+        nodeIcon = Icons.wc;
+      } else if (nodeType.contains('cafe')) {
+        nodeIcon = Icons.local_cafe;
+      } else if (nodeType.contains('hospital') || nodeType.contains('first aid')) {
+        nodeIcon = Icons.local_hospital;
+      } else if (nodeType.contains('elevator')) {
+        nodeIcon = Icons.elevator;
+      } else if (nodeType.contains('stair')) {
+        nodeIcon = Icons.stairs;
+      } else if (nodeType.contains('exit')) {
+        nodeIcon = Icons.exit_to_app;
+      } else if (nodeType.contains('entrance')) {
+        nodeIcon = Icons.login;
+      } else if (nodeType.contains('amenity')) {
+        nodeIcon = Icons.info;
       }
 
-      canvas.drawCircle(
-        pos,
-        radius + (isVisited ? 1.0 : 2.0),
-        Paint()..color = isVisited ? const Color(0x99FFFFFF) : Colors.white,
-      );
-      canvas.drawCircle(
-        pos,
-        radius,
-        Paint()..color = pinColor,
-      );
+      Color pinColor;
+      double radius;
+      double haloRadius;
 
-      if (isSchematic && node.objectId != null && !isVisited) {
+      if (isVisited) {
+        // Muted/subtle state for visited artifact nodes
+        pinColor = const Color(0xFF94A3B8); // Muted slate gray
+        radius = 2.5;
+        haloRadius = 3.5;
+      } else if (isDest) {
+        // Prominent accent for active destination
+        pinColor = const Color(0xFFEC4899); // Vibrant rose
+        radius = 4.8;
+        haloRadius = 6.2;
+      } else if (isSpecialPlace) {
+        // Distinct color for amenities/utilities
+        pinColor = const Color(0xFF3B82F6); // Blue
+        radius = 5.0; // slightly larger for icon
+        haloRadius = 6.5;
+      } else {
+        // Active artifact node
+        pinColor = isSchematic ? const Color(0xFFD97706) : const Color(0xFFF59E0B);
+        radius = 3.5;
+        haloRadius = 4.7;
+      }
+
+      if (isSpecialPlace && !isDest && !isVisited) {
+        // Draw as a rounded rectangle for amenities to stand out structurally
+        final rect = Rect.fromCenter(center: pos, width: radius * 2.2, height: radius * 2.2);
+        final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(2.5));
+
+        final haloRect = Rect.fromCenter(center: pos, width: haloRadius * 2.2, height: haloRadius * 2.2);
+        final haloRRect = RRect.fromRectAndRadius(haloRect, const Radius.circular(3.5));
+
+        canvas.drawRRect(haloRRect, Paint()..color = Colors.white);
+        canvas.drawRRect(rrect, Paint()..color = pinColor);
+
+        // Draw Icon if available
+        if (nodeIcon != null) {
+          final iconPainter = TextPainter(
+            text: TextSpan(
+              text: String.fromCharCode(nodeIcon.codePoint),
+              style: TextStyle(
+                fontSize: radius * 1.5,
+                fontFamily: nodeIcon.fontFamily,
+                package: nodeIcon.fontPackage,
+                color: Colors.white,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          );
+          iconPainter.layout();
+          iconPainter.paint(
+            canvas,
+            Offset(pos.dx - (iconPainter.width / 2), pos.dy - (iconPainter.height / 2)),
+          );
+        } else if (isSchematic) {
+          canvas.drawCircle(pos, 1.2, Paint()..color = Colors.white);
+        }
+      } else {
+        // Outer halo ring (circle for artifacts, visited, or active destinations)
         canvas.drawCircle(
           pos,
-          2.5,
-          Paint()..color = Colors.white,
+          haloRadius,
+          Paint()..color = isVisited ? const Color(0x88FFFFFF) : Colors.white,
         );
+
+        // Inner pin body
+        canvas.drawCircle(
+          pos,
+          radius,
+          Paint()..color = pinColor,
+        );
+
+        // Schematic center pip
+        if (isSchematic && !isVisited) {
+          canvas.drawCircle(
+            pos,
+            1.2,
+            Paint()..color = Colors.white,
+          );
+        }
+      }
+
+      // Draw Name Text (Artifacts or Special Amenities)
+      if (node.name.isNotEmpty && !isVisited) {
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: node.name,
+            style: TextStyle(
+              fontSize: isSchematic ? 9 : 8,
+              fontWeight: FontWeight.w700,
+              color: isSpecialPlace ? const Color(0xFF1E3A8A) : const Color(0xFF451A03),
+              shadows: const [
+                Shadow(color: Colors.white, blurRadius: 2, offset: Offset(0, 1)),
+                Shadow(color: Colors.white, blurRadius: 2, offset: Offset(0, -1)),
+                Shadow(color: Colors.white, blurRadius: 2, offset: Offset(1, 0)),
+                Shadow(color: Colors.white, blurRadius: 2, offset: Offset(-1, 0)),
+              ],
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+          maxLines: 2,
+          textAlign: TextAlign.center,
+        );
+        textPainter.layout(maxWidth: 60);
+
+        final textY = pos.dy + haloRadius + 2;
+        final textX = pos.dx - (textPainter.width / 2);
+
+        textPainter.paint(canvas, Offset(textX, textY));
       }
     }
 
@@ -778,8 +1199,9 @@ class _FloorPlanPainter extends CustomPainter {
       final userPos = toCanvas(currentPosition!.x, currentPosition!.y);
       final heading = currentPosition!.heading;
 
-      const double coneLength = 55.0;
-      const double fovDegrees = 65.0;
+      // Small, precise directional heading cone/beam
+      const double coneLength = 16.0;
+      const double fovDegrees = 50.0;
       final startAngleRad = (heading - fovDegrees / 2.0 - 90.0) * (math.pi / 180.0);
       final sweepAngleRad = fovDegrees * (math.pi / 180.0);
 
@@ -804,32 +1226,38 @@ class _FloorPlanPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: userPos, radius: coneLength));
       canvas.drawPath(conePath, conePaint);
 
-      // Multi-layer high-visibility Blue Dot Navigator
+      // Subtle, low-opacity accuracy halo ring (Google Maps style)
       canvas.drawCircle(
         userPos,
-        22.0,
-        Paint()..color = const Color(0x263B82F6),
+        9.0,
+        Paint()
+          ..color = const Color(0x182563EB)
+          ..style = PaintingStyle.fill,
+      );
+      canvas.drawCircle(
+        userPos,
+        9.0,
+        Paint()
+          ..color = const Color(0x332563EB)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
       );
 
+      // Crisp white outer border
       canvas.drawCircle(
         userPos,
-        14.0,
-        Paint()..color = const Color(0x402563EB),
-      );
-
-      canvas.drawCircle(
-        userPos,
-        8.5,
+        5.0,
         Paint()
           ..color = Colors.white
           ..style = PaintingStyle.fill,
       );
 
+      // Solid vibrant blue center dot
       canvas.drawCircle(
         userPos,
-        6.5,
+        3.8,
         Paint()
-          ..color = const Color(0xFF1D4ED8)
+          ..color = const Color(0xFF2563EB)
           ..style = PaintingStyle.fill,
       );
     }

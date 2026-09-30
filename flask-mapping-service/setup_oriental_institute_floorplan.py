@@ -242,7 +242,8 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
     print(f"Created {len(room_ids)} gallery rooms in rooms table.")
 
     # 6. Synchronize galleries in the galleries table for Museum 1
-    execute_query("UPDATE objects SET gallery_id = NULL WHERE museum_id = %s;", (MUSEUM_ID,), commit=True)
+    execute_query("UPDATE map_nodes SET object_id = NULL WHERE floor_plan_id = %s::uuid;", (plan_id,), commit=True)
+    execute_query("DELETE FROM objects WHERE museum_id = %s AND id > 10;", (MUSEUM_ID,), commit=True)
     execute_query("DELETE FROM galleries WHERE museum_id = %s;", (MUSEUM_ID,), commit=True)
     gallery_db_ids = {}
     for r in rooms_data:

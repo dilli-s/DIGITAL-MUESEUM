@@ -9,8 +9,19 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:5000',
         changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
       }
     }
+  },
+  // Ensure only ONE copy of Three.js is bundled.
+  // Photo Sphere Viewer and @google/model-viewer both depend on Three.js —
+  // without this, they each bundle a separate copy, causing WebGL context
+  // inconsistencies and intermittent "Failed to fetch" panorama errors.
+  resolve: {
+    dedupe: ['three'],
   },
   plugins: [
     react(),

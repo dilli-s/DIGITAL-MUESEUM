@@ -305,14 +305,20 @@ def update_boundary_point(room_id, point_id, data):
             a1_lng = plan.get("anchor_1_lng")
             a2_lat = plan.get("anchor_2_lat")
             a2_lng = plan.get("anchor_2_lng")
-            if a1_lat is None or a1_lng is None or a2_lat is None or a2_lng is None:
-                return None, "Set anchors before manually correcting GPS coordinates.", 400
+            has_anchors = (a1_lat is not None and a1_lng is not None and
+                           a2_lat is not None and a2_lng is not None)
 
-            new_x, new_y = gps_to_map_xy(lat, lng, plan)
-            from app.models.footprint import validate_point_in_footprint
-            is_valid, err_msg = validate_point_in_footprint(floor_plan_id, new_x, new_y)
-            if not is_valid:
-                return None, err_msg, 400
+            if has_anchors:
+                # Anchors set: compute pixel position from GPS
+                new_x, new_y = gps_to_map_xy(lat, lng, plan)
+                from app.models.footprint import validate_point_in_footprint
+                is_valid, err_msg = validate_point_in_footprint(floor_plan_id, new_x, new_y)
+                if not is_valid:
+                    return None, err_msg, 400
+            else:
+                # No anchors yet: keep existing x/y, just store the GPS values directly
+                new_x = float(b_row[3])
+                new_y = float(b_row[4])
 
             up_query = """
                 UPDATE room_boundaries

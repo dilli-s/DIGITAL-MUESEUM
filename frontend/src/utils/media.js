@@ -1,11 +1,14 @@
 import API_BASE_URL from '../config/api';
 
 export const getMediaUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) return trimmed;
   
-  // If it's a relative URL from our backend (e.g. /static/audio/...)
-  // We need to strip the '/api' from the API_BASE_URL to get the root host
-  const host = API_BASE_URL.replace(/\/api$/, '');
-  return `${host}${url.startsWith('/') ? '' : '/'}${url}`;
+  // Clean relative path
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  const host = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+  return `${host}${cleanPath}`;
 };

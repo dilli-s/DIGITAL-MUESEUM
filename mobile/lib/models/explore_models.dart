@@ -33,7 +33,7 @@ class Story {
       objectId: json['object_id'] ?? 0,
       title: json['title'] ?? '',
       summary: json['summary'],
-      image: json['image'],
+      image: json['image'] ?? json['image_url'],
       content: parsedContent,
       duration: json['duration'],
     );
@@ -162,7 +162,7 @@ class Exhibition {
       subtitle: json['subtitle'],
       description: json['description'],
       longDescription: json['long_description'],
-      image: json['image'],
+      image: json['image'] ?? json['image_url'],
       category: json['category'],
       theme: json['theme'],
       period: json['period'],

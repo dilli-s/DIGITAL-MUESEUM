@@ -5,7 +5,7 @@ import MuseumNotFound from '../components/museum/MuseumNotFound';
 import CollectionCard from '../components/collection/CollectionCard';
 import CollectionSearch from '../components/collection/CollectionSearch';
 import CollectionFilters from '../components/collection/CollectionFilters';
-import { ChevronRight, RefreshCw, LayoutDashboard } from 'lucide-react';
+import { ChevronRight, RefreshCw, Layers, Landmark } from 'lucide-react';
 
 const Collections = () => {
   const { museumId } = useParams();
@@ -59,22 +59,25 @@ const Collections = () => {
       const matchSearch = term === '' || 
         (collection.name && collection.name.toLowerCase().includes(term)) ||
         (collection.description && collection.description.toLowerCase().includes(term)) ||
-        (collection.category && collection.category.toLowerCase().includes(term)) ||
-        (collection.period && collection.period.toLowerCase().includes(term)) ||
-        (collection.location && collection.location.toLowerCase().includes(term));
+        (collection.category && collection.category.toLowerCase().includes(term));
         
       return matchCategory && matchSearch;
     });
   }, [museumCollections, searchTerm, selectedCategory]);
 
-  const featuredCollections = filteredCollections.filter(c => c.featured);
-  const totalObjects = museumCollections.reduce((acc, curr) => acc + (curr.objectCount || 0), 0);
+  const featuredCollections = useMemo(() => {
+    return museumCollections.filter(c => c.featured);
+  }, [museumCollections]);
+
+  const totalObjects = useMemo(() => {
+    return museumCollections.reduce((acc, curr) => acc + (curr.objectCount || curr.object_count || 0), 0);
+  }, [museumCollections]);
 
   if (isLoading) {
     return (
       <div className="w-full py-32 flex flex-col items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-neutral-900 animate-spin mb-4" />
-        <p className="text-lg text-neutral-600 font-medium">Loading collections...</p>
+        <RefreshCw className="w-10 h-10 text-[#c89b3c] animate-spin mb-4" />
+        <p className="text-lg text-[#d4c6b2] font-medium font-['Cinzel']">Accessing Museum Collections...</p>
       </div>
     );
   }
@@ -82,12 +85,12 @@ const Collections = () => {
   if (error) {
     return (
       <div className="w-full py-32 flex flex-col items-center justify-center">
-        <LayoutDashboard className="w-16 h-16 text-red-500 mb-6" />
-        <h2 className="text-2xl font-bold text-neutral-900 mb-2">{error}</h2>
-        <p className="text-neutral-500 mb-8 max-w-md text-center">There was a problem connecting to the database.</p>
+        <Layers className="w-16 h-16 text-[#e57373] mb-6" />
+        <h2 className="font-['Cinzel'] text-2xl font-bold text-[#fcf8f0] mb-2">{error}</h2>
+        <p className="text-[#d4c6b2] mb-8 max-w-md text-center">There was a problem loading collections.</p>
         <button 
           onClick={fetchData}
-          className="px-6 py-3 bg-neutral-900 text-white font-bold rounded-lg hover:bg-neutral-800 transition-colors"
+          className="px-8 py-3 bg-[#c89b3c] text-[#0e0c0a] font-bold rounded-full hover:bg-[#dfb758] transition-colors uppercase tracking-wider text-xs"
         >
           TRY AGAIN
         </button>
@@ -100,63 +103,64 @@ const Collections = () => {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col gap-6 pb-16">
       {/* Breadcrumb */}
-      <nav className="flex text-sm text-neutral-500 mb-6" aria-label="Breadcrumb">
+      <nav className="flex text-xs sm:text-sm text-[#a89984]" aria-label="Breadcrumb">
         <ol className="inline-flex items-center space-x-1 md:space-x-2">
           <li className="inline-flex items-center">
-            <Link to="/" className="hover:text-neutral-900 transition-colors">Home</Link>
+            <Link to="/" className="hover:text-[#e5c158] transition-colors">Home</Link>
           </li>
           <li>
             <div className="flex items-center">
-              <ChevronRight className="w-4 h-4 mx-1" />
-              <Link to="/museums" className="hover:text-neutral-900 transition-colors">Museums</Link>
+              <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#6b5c4c]" />
+              <Link to="/museums" className="hover:text-[#e5c158] transition-colors">Museums</Link>
             </div>
           </li>
           <li>
             <div className="flex items-center">
-              <ChevronRight className="w-4 h-4 mx-1" />
-              <Link to={`/museums/${museumId}`} className="hover:text-neutral-900 transition-colors">{museum.name}</Link>
+              <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#6b5c4c]" />
+              <Link to={`/museums/${museumId}`} className="hover:text-[#e5c158] transition-colors truncate max-w-[150px] sm:max-w-none">{museum.name}</Link>
             </div>
           </li>
           <li>
             <div className="flex items-center">
-              <ChevronRight className="w-4 h-4 mx-1" />
-              <span className="text-neutral-900 font-medium">Collections</span>
+              <ChevronRight className="w-3.5 h-3.5 mx-1 text-[#6b5c4c]" />
+              <span className="text-[#e5c158] font-semibold">Collections</span>
             </div>
           </li>
         </ol>
       </nav>
 
-      {/* Museum Header */}
-      <div className="mb-10 pb-6 border-b border-neutral-200">
-        <h2 className="text-xl font-medium text-neutral-500 mb-1">{museum.name}</h2>
-        <div className="flex items-center text-sm text-neutral-400">
-          <span>{museum.location}</span>
-          <span className="mx-2">•</span>
-          <span>{museum.category}</span>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+      {/* Museum Header Card */}
+      <div className="p-6 sm:p-8 rounded-2xl bg-[#18130e] border border-[#382d1f] flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-neutral-900 mb-2">Explore Collections</h1>
-          <p className="text-lg text-neutral-600">Browse curated collections and discover objects connected by history, culture and themes.</p>
-        </div>
-        <div className="bg-neutral-50 rounded-lg p-4 border border-neutral-200 text-center flex-shrink-0 md:w-48 flex justify-around">
-          <div>
-             <div className="text-2xl font-bold text-neutral-900">{museumCollections.length}</div>
-             <div className="text-xs text-neutral-500 uppercase tracking-wider">Collections</div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#c89b3c]/15 border border-[#c89b3c]/30 text-[#e5c158] text-[10px] font-semibold tracking-widest uppercase mb-2">
+            <Landmark className="w-3 h-3" />
+            {museum.category || 'MUSEUM ARCHIVE'}
           </div>
-          <div>
-             <div className="text-2xl font-bold text-neutral-900">{totalObjects.toLocaleString()}</div>
-             <div className="text-xs text-neutral-500 uppercase tracking-wider">Objects</div>
+          <h1 className="font-['Cinzel'] text-2xl sm:text-4xl font-bold tracking-tight text-[#fcf8f0] mb-2">
+            Explore Collections
+          </h1>
+          <p className="text-xs sm:text-base text-[#d4c6b2] max-w-xl font-light">
+            Browse curated collections and discover objects connected by history, culture, and themes.
+          </p>
+        </div>
+
+        <div className="bg-[#1f1913] rounded-xl p-4 border border-[#382d1f] text-center flex-shrink-0 md:w-56 flex justify-around shadow-inner">
+          <div className="px-3">
+             <div className="font-['Cinzel'] text-2xl font-bold text-[#e5c158]">{museumCollections.length}</div>
+             <div className="text-[10px] font-bold text-[#d4c6b2] uppercase tracking-wider mt-0.5">Collections</div>
+          </div>
+          <div className="w-px bg-[#382d1f]" />
+          <div className="px-3">
+             <div className="font-['Cinzel'] text-2xl font-bold text-[#e5c158]">{totalObjects.toLocaleString()}</div>
+             <div className="text-[10px] font-bold text-[#d4c6b2] uppercase tracking-wider mt-0.5">Objects</div>
           </div>
         </div>
       </div>
 
       {/* Search & Filters */}
-      <section className="mb-10 space-y-6">
+      <section className="space-y-4">
         <CollectionSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         <CollectionFilters 
           categories={categories} 
@@ -167,11 +171,11 @@ const Collections = () => {
 
       {/* Featured Collections */}
       {featuredCollections.length > 0 && searchTerm === '' && selectedCategory === 'All' && (
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold text-neutral-900 mb-6 flex items-center">
-            Featured Collections
+        <section>
+          <h2 className="font-['Cinzel'] text-xl sm:text-2xl font-bold text-[#fcf8f0] mb-6 flex items-center gap-2">
+            <span>Featured Collections</span>
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {featuredCollections.map(collection => (
               <CollectionCard key={collection.id} collection={collection} museumId={museumId} />
             ))}
@@ -180,28 +184,28 @@ const Collections = () => {
       )}
 
       {/* Collection Grid */}
-      <section className="mb-16">
-        <h2 className="text-2xl font-bold text-neutral-900 mb-6">
+      <section>
+        <h2 className="font-['Cinzel'] text-xl sm:text-2xl font-bold text-[#fcf8f0] mb-6">
           {searchTerm === '' && selectedCategory === 'All' ? 'All Collections' : 'Search Results'}
         </h2>
         {museumCollections.length === 0 ? (
-          <div className="text-center py-20 bg-neutral-50 rounded-2xl border border-neutral-200 border-dashed">
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No collections available</h3>
-            <p className="text-neutral-500 mb-6">This museum does not have any collections available yet.</p>
+          <div className="text-center py-20 bg-[#17130e] rounded-2xl border border-[#382d1f] border-dashed">
+            <h3 className="font-['Cinzel'] text-lg font-bold text-[#fcf8f0] mb-2">No collections available</h3>
+            <p className="text-sm text-[#d4c6b2]">This museum does not have any collections uploaded yet.</p>
           </div>
         ) : filteredCollections.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCollections.map(collection => (
               <CollectionCard key={collection.id} collection={collection} museumId={museumId} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 bg-neutral-50 rounded-2xl border border-neutral-200 border-dashed">
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No collections found</h3>
-            <p className="text-neutral-500 mb-6">Try changing your search or filters.</p>
+          <div className="text-center py-20 bg-[#17130e] rounded-2xl border border-[#382d1f] border-dashed">
+            <h3 className="font-['Cinzel'] text-lg font-bold text-[#fcf8f0] mb-2">No collections found</h3>
+            <p className="text-sm text-[#d4c6b2] mb-6">Try changing your search keywords or filter category.</p>
             <button
               onClick={() => { setSearchTerm(''); setSelectedCategory('All'); }}
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-neutral-900 hover:bg-neutral-800 focus:outline-none"
+              className="inline-flex items-center justify-center px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider text-[#0e0c0a] bg-[#c89b3c] hover:bg-[#dfb758] transition-colors"
             >
               Clear Filters
             </button>
@@ -210,12 +214,12 @@ const Collections = () => {
       </section>
 
       {/* Navigation */}
-      <div className="mt-12 pt-8 border-t border-neutral-200">
+      <div className="mt-8 pt-6 border-t border-[#2d2419]">
         <Link 
           to={`/museums/${museumId}`}
-          className="text-sm font-semibold text-neutral-900 hover:underline inline-flex items-center"
+          className="text-xs sm:text-sm font-semibold tracking-wider uppercase text-[#c89b3c] hover:text-[#dfb758] inline-flex items-center gap-1 transition-colors"
         >
-          <ChevronRight className="w-4 h-4 mr-1 rotate-180" /> Back to Museum Overview
+          <ChevronRight className="w-4 h-4 rotate-180" /> Back to Museum Overview
         </Link>
       </div>
     </div>

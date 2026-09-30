@@ -4,6 +4,7 @@ import { stories } from '../data/stories';
 import { getObject } from '../services/api';
 import { ArrowLeft, Clock } from 'lucide-react';
 import RelatedLearning from '../components/learning/RelatedLearning';
+import { getMediaUrl } from '../utils/media';
 
 const StoryDetails = () => {
   const { storyId } = useParams();
@@ -18,27 +19,30 @@ const StoryDetails = () => {
 
   if (!story) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 px-4 text-center">
-        <h1 className="text-3xl font-bold mb-4 text-neutral-900">Story Not Found</h1>
-        <Link to="/learning" className="inline-flex items-center justify-center rounded-md bg-neutral-900 px-6 py-3 text-sm font-semibold text-white">
-          Back to Learning
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-bold text-neutral-900 mb-4">Story Not Found</h2>
+        <Link to="/learning" className="inline-flex items-center text-sm font-semibold text-neutral-900 hover:underline">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Learning Hub
         </Link>
       </div>
     );
   }
 
+  const storyImgUrl = story.image ? getMediaUrl(story.image) : null;
+
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <nav className="flex text-sm text-neutral-500 mb-8" aria-label="Breadcrumb">
-        <Link to="/learning" className="hover:text-neutral-900 transition-colors flex items-center">
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back to Learning
+    <div className="max-w-4xl mx-auto">
+      {/* Navigation */}
+      <nav className="mb-8">
+        <Link to="/learning" className="inline-flex items-center text-sm font-semibold text-neutral-600 hover:text-neutral-900 transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Learning Hub
         </Link>
       </nav>
 
       {/* Story Hero */}
       <div className="relative rounded-2xl overflow-hidden mb-12 bg-neutral-900 min-h-[400px] flex items-end">
-        {story.image ? (
-          <img src={story.image} alt={story.title} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+        {storyImgUrl ? (
+          <img src={storyImgUrl} alt={story.title} className="absolute inset-0 w-full h-full object-cover opacity-50" />
         ) : (
           <div className="absolute inset-0 bg-neutral-800"></div>
         )}

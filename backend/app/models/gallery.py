@@ -22,6 +22,7 @@ class Gallery(BaseModel):
     objects = db.relationship('MuseumObject', back_populates='gallery')
 
     def serialize(self) -> dict[str, Any]:
+        obj_count = len(self.objects) if hasattr(self, 'objects') and self.objects else 0
         return {
             "id": self.id,
             "museum_id": self.museum_id,
@@ -30,6 +31,8 @@ class Gallery(BaseModel):
             "image": self.image,
             "floor": self.floor,
             "boundary_polygon": self.boundary_polygon,
+            "objectCount": obj_count,
+            "object_count": obj_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

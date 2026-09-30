@@ -1,129 +1,106 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Navigation, MapPin } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 
 const HeroSection = ({ onLocationDetect, onSearch }) => {
   const [searchInput, setSearchInput] = useState('');
-  const [isLocating, setIsLocating] = useState(false);
-  const [locationGranted, setLocationGranted] = useState(false);
-  const [locationName, setLocationName] = useState('');
-  const inputRef = useRef(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const handleExploreClick = () => {
+    const el = document.getElementById('experience-section') || document.getElementById('museum-finder');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/museums');
+    }
+  };
 
-  const handleSearch = (e) => {
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (!searchInput.trim()) return;
     if (onSearch) onSearch(searchInput.trim());
-    document.getElementById('museum-finder')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleDetectLocation = () => {
-    if (!navigator.geolocation) return;
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        setIsLocating(false);
-        setLocationGranted(true);
-        setLocationName('Detecting...');
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`
-          );
-          const data = await res.json();
-          const city =
-            data.address?.city ||
-            data.address?.town ||
-            data.address?.village ||
-            data.address?.county ||
-            'your area';
-          setLocationName(city);
-        } catch {
-          setLocationName('your area');
-        }
-        if (onLocationDetect) onLocationDetect({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setTimeout(() => {
-          document.getElementById('museum-finder')?.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
-      },
-      () => setIsLocating(false),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    navigate(`/search?q=${encodeURIComponent(searchInput.trim())}`);
   };
 
   return (
-    <section className="bg-neutral-900 text-white rounded-2xl my-2 sm:my-6 px-4 sm:px-6 py-10 sm:py-28 relative overflow-hidden">
-      {/* Subtle dot grid — same as the old hero */}
-      <div
-        className="absolute inset-0 opacity-10"
+    <section className="relative w-full min-h-[calc(100vh-5rem)] flex flex-col justify-between overflow-hidden bg-[#0c0a08]">
+      {/* Full-bleed Grand Museum Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000"
         style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-          backgroundSize: '36px 36px',
+          backgroundImage: `url('/images/hero_museum_hall.jpg')`,
         }}
       />
 
-      <div className="relative z-10 max-w-2xl mx-auto text-center">
-        <p className="text-xs font-semibold tracking-widest text-neutral-400 uppercase mb-3 sm:mb-4">
-          Welcome to the Digital Museum
-        </p>
+      {/* Atmospheric Vignette & Warm Golden Shadows */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-[#0e0c0a]/45 to-[#0e0c0a]/75" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0e0c0a]/90 via-[#0e0c0a]/40 to-transparent" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,rgba(14,12,10,0.85)_100%)]" />
 
-        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-tight mb-3 sm:mb-4">
-          Experience History, Reimagined.
-        </h1>
+      {/* Top spacer */}
+      <div className="relative z-10 pt-8 sm:pt-16" />
 
-        <p className="text-neutral-400 text-sm sm:text-base mb-6 sm:mb-10 leading-relaxed">
-          A next-generation platform for virtual museum exploration. Discover nearby exhibitions, interact with AI-generated 3D artifacts, and listen to immersive multi-lingual audio narrations.
-        </p>
-
-        {/* Search form */}
-        <form onSubmit={handleSearch} className="flex gap-2 w-full max-w-xl mx-auto mb-4">
-          <div className="flex-1 flex items-center bg-white/10 border border-white/20 rounded-lg overflow-hidden focus-within:border-white/50 transition-colors">
-            <Search className="w-4 h-4 text-neutral-400 ml-4 flex-shrink-0" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search city or museum..."
-              className="flex-1 bg-transparent text-white placeholder-neutral-500 px-3 py-3 text-sm focus:outline-none"
-            />
+      {/* Hero Content container - responsive across all devices */}
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 pb-8 sm:pb-12 text-left">
+        <div className="max-w-3xl">
+          {/* Category / Badge */}
+          <div className="inline-flex items-center gap-3 mb-3 sm:mb-4">
+            <div className="w-8 h-[1px] bg-[#c89b3c]" />
+            <span className="text-[11px] sm:text-xs font-semibold tracking-[0.3em] uppercase text-[#dfb758]">
+              SMART CULTURAL GUIDE
+            </span>
           </div>
-          <button
-            type="submit"
-            disabled={!searchInput.trim()}
-            className="px-5 py-3 bg-white text-neutral-900 text-sm font-semibold rounded-lg hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Search
-          </button>
-        </form>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-4 max-w-xl mx-auto">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-neutral-500 text-xs">or</span>
-          <div className="flex-1 h-px bg-white/10" />
+          {/* Main Title */}
+          <h1 className="font-['Cinzel'] font-bold text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-[#fdf8ee] tracking-tight uppercase leading-[1.02] drop-shadow-lg">
+            DIGITAL MUSEUM
+          </h1>
+
+          {/* Italic Graceful Subheading */}
+          <p className="font-['Cormorant_Garamond'] italic text-2xl sm:text-4xl md:text-5xl text-[#eeddc0] font-normal mt-1 sm:mt-2 mb-4 sm:mb-6 leading-tight tracking-wide drop-shadow">
+            Your Window to the Past
+          </p>
+
+          {/* Supporting description */}
+          <p className="text-sm sm:text-base md:text-lg text-[#c2b39d] max-w-2xl font-light leading-relaxed mb-8 sm:mb-10 drop-shadow-sm">
+            Step into a world of art, history and culture — where every artifact tells a story.
+          </p>
+
+          {/* Action Button & Search */}
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              onClick={handleExploreClick}
+              className="group inline-flex items-center gap-2.5 px-7 sm:px-9 py-3.5 sm:py-4 rounded-full bg-gradient-to-r from-[#8f6826] via-[#a87d32] to-[#8f6826] hover:from-[#a87d32] hover:to-[#be9141] text-[#fff8ea] text-xs sm:text-sm font-semibold tracking-wider uppercase shadow-xl shadow-[#8f6826]/30 border border-[#dfb758]/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>Explore Museums</span>
+              <ChevronRight className="w-4 h-4 text-[#ffe6a4] group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <form onSubmit={handleSearchSubmit} className="hidden sm:flex items-center bg-[#171410]/80 backdrop-blur-md border border-[#4a3d2c] rounded-full px-4 py-3 focus-within:border-[#c89b3c] transition-colors w-72 md:w-80 shadow-md">
+              <Search className="w-4 h-4 text-[#a89984] mr-2.5 flex-shrink-0" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search artifacts, galleries..."
+                className="bg-transparent text-xs sm:text-sm text-[#f4eee1] placeholder-[#8a7c6a] focus:outline-none w-full"
+              />
+            </form>
+          </div>
         </div>
+      </div>
 
-        {/* Location button */}
-        {!locationGranted ? (
-          <button
-            onClick={handleDetectLocation}
-            disabled={isLocating}
-            className="inline-flex items-center gap-2 px-5 py-3 border border-white/20 rounded-lg text-sm font-medium text-white hover:bg-white/10 disabled:opacity-60 transition-colors"
-          >
-            <Navigation className={`w-4 h-4 text-neutral-300 ${isLocating ? 'animate-spin' : ''}`} />
-            {isLocating ? 'Getting location...' : 'Use My Location'}
-          </button>
-        ) : (
-          <div className="inline-flex items-center gap-2 px-4 py-2.5 border border-white/20 rounded-lg text-sm text-neutral-300">
-            <MapPin className="w-4 h-4 text-neutral-400" />
-            {locationName} — <span className="text-white font-medium">see museums below ↓</span>
+      {/* Scroll indicator with antique mouse glyph */}
+      <div className="relative z-10 pb-6 sm:pb-8 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity">
+        <button 
+          onClick={handleExploreClick}
+          className="flex flex-col items-center gap-1.5 text-[10px] tracking-[0.25em] uppercase text-[#b0a08b] hover:text-[#dfb758] transition-colors"
+        >
+          <div className="w-4 h-7 border border-[#b0a08b]/70 rounded-full flex justify-center pt-1">
+            <div className="w-1 h-1.5 bg-[#dfb758] rounded-full animate-bounce" />
           </div>
-        )}
+          <span>Scroll</span>
+        </button>
       </div>
     </section>
   );

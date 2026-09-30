@@ -11,6 +11,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 150));
     await tester.pump();
 
+    // Navigate from entry QR scanner screen to museum selection if gated
+    if (find.text('Browse museums instead').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Browse museums instead'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
     expect(find.text('Where will\nyour curiosity lead?'), findsOneWidget);
   });
 }

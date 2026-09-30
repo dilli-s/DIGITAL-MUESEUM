@@ -108,7 +108,7 @@ class _MuseumSelectionScreenState extends State<MuseumSelectionScreen> {
         builder: (_) => SyncScreen(
           museumId: museumId,
           initialFloorPlanId: floor.floorPlanId,
-          forceSync: true,
+          forceSync: false,
         ),
       ),
     );

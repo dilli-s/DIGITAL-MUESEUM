@@ -142,6 +142,9 @@ export default function AdminCoordinateEditor() {
     const [imageLoadError, setImageLoadError] = useState(false);
     const [editingPointIdx, setEditingPointIdx] = useState(null);
     const [isEditingNodeGps, setIsEditingNodeGps] = useState(false);
+    const [nodeGpsWatchId, setNodeGpsWatchId] = useState(null);
+    const [isWatchingNodeGPS, setIsWatchingNodeGPS] = useState(false);
+    const [nodeGpsAccuracy, setNodeGpsAccuracy] = useState(null);
 
   const computeReferenceDistances = (targetLat, targetLng, excludeId = null) => {
     const latNum = parseFloat(targetLat);
@@ -194,6 +197,9 @@ export default function AdminCoordinateEditor() {
     const [showValidationModal, setShowValidationModal] = useState(false);
     const [editLat, setEditLat] = useState('');
     const [editLng, setEditLng] = useState('');
+    const [gpsWatchId, setGpsWatchId] = useState(null);
+    const [isWatchingGPS, setIsWatchingGPS] = useState(false);
+    const [gpsAccuracy, setGpsAccuracy] = useState(null);
     const [showPreview, setShowPreview] = useState(false);
     const [lastValidationTime, setLastValidationTime] = useState(null);
 
@@ -291,6 +297,10 @@ export default function AdminCoordinateEditor() {
         let bestUdx = 1, bestUdy = 0;
         const n = poly.length;
 
+        let bestB1Gps = null;
+        let bestB2Gps = null;
+        let bestT = 0;
+
         for (let i = 0; i < n; i++) {
             const b1 = poly[i];
             const b2 = poly[(i + 1) % n];
@@ -310,6 +320,15 @@ export default function AdminCoordinateEditor() {
                 const segLen = Math.sqrt(segLenSq) || 1;
                 bestUdx = dx / segLen;
                 bestUdy = dy / segLen;
+                // Capture GPS of the two boundary points of this wall segment
+                const rawBounds = currentRoom.boundaries;
+                const rb1 = rawBounds[i];
+                const rb2 = rawBounds[(i + 1) % n];
+                bestB1Gps = (rb1.latitude != null && rb1.longitude != null)
+                    ? { lat: rb1.latitude, lng: rb1.longitude } : null;
+                bestB2Gps = (rb2.latitude != null && rb2.longitude != null)
+                    ? { lat: rb2.latitude, lng: rb2.longitude } : null;
+                bestT = t;
             }
         }
 
@@ -371,7 +390,10 @@ export default function AdminCoordinateEditor() {
             snapY: bestSnapY,
             p1,
             p2,
-            adjacentRoom: adjacent
+            adjacentRoom: adjacent,
+            b1Gps: bestB1Gps,
+            b2Gps: bestB2Gps,
+            tBest: bestT
         };
     }, [isPointInsidePolygon]);
 
@@ -588,22 +610,81 @@ const filteredEdges = useMemo(() => {
     });
 }, [edges, nodes, edgeFilterType, edgeFilterQuery, edgeNodeA, filterByNodeA, invalidEdgeIds, isEntranceNode]);
 
-const handleUseGPSForPoint = () => {
-    if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                setEditLat(pos.coords.latitude.toFixed(7));
-                setEditLng(pos.coords.longitude.toFixed(7));
-                setMessage({ text: `GPS location acquired: (${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)})`, type: 'success' });
-            },
-            (err) => {
-                setMessage({ text: `Failed to get GPS location. ${err.message}`, type: 'error' });
-            },
-            { enableHighAccuracy: true, timeout: 8000 }
-        );
-    } else {
-        setMessage({ text: "Geolocation is not supported by this browser.", type: "error" });
+const handleStopNodeGPSWatch = () => {
+    if (nodeGpsWatchId !== null) {
+        navigator.geolocation.clearWatch(nodeGpsWatchId);
+        setNodeGpsWatchId(null);
+        setIsWatchingNodeGPS(false);
+        setNodeGpsAccuracy(null);
     }
+};
+
+const handleStartNodeGPSWatch = () => {
+    if (!("geolocation" in navigator)) {
+        setMessage({ text: "Geolocation is not supported by this browser.", type: "error" });
+        return;
+    }
+    if (nodeGpsWatchId !== null) {
+        navigator.geolocation.clearWatch(nodeGpsWatchId);
+    }
+    setIsWatchingNodeGPS(true);
+    setMessage({ text: 'Acquiring real-time GPS for node...', type: 'info' });
+    const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+            setLat(pos.coords.latitude.toFixed(7));
+            setLng(pos.coords.longitude.toFixed(7));
+            setNodeGpsAccuracy(pos.coords.accuracy ? pos.coords.accuracy.toFixed(1) : null);
+            setMessage({ text: `📡 Live GPS: (${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}) — Accuracy: ±${pos.coords.accuracy ? pos.coords.accuracy.toFixed(1) : '?'}m`, type: 'success' });
+        },
+        (err) => {
+            setIsWatchingNodeGPS(false);
+            setNodeGpsWatchId(null);
+            setNodeGpsAccuracy(null);
+            setMessage({ text: `Failed to get GPS: ${err.message}`, type: 'error' });
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+    setNodeGpsWatchId(watchId);
+};
+
+
+const handleStopGPSWatch = () => {
+    if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        setGpsWatchId(null);
+        setIsWatchingGPS(false);
+        setGpsAccuracy(null);
+        setMessage({ text: 'Real-time GPS tracking stopped.', type: 'success' });
+    }
+};
+
+const handleUseGPSForPoint = () => {
+    if (!("geolocation" in navigator)) {
+        setMessage({ text: "Geolocation is not supported by this browser.", type: "error" });
+        return;
+    }
+    // Stop any existing watch first
+    if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+    }
+    setIsWatchingGPS(true);
+    setMessage({ text: 'Acquiring real-time GPS location...', type: 'info' });
+    const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+            setEditLat(pos.coords.latitude.toFixed(7));
+            setEditLng(pos.coords.longitude.toFixed(7));
+            setGpsAccuracy(pos.coords.accuracy ? pos.coords.accuracy.toFixed(1) : null);
+            setMessage({ text: `📡 Live GPS: (${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}) — Accuracy: ±${pos.coords.accuracy ? pos.coords.accuracy.toFixed(1) : '?'}m`, type: 'success' });
+        },
+        (err) => {
+            setIsWatchingGPS(false);
+            setGpsWatchId(null);
+            setGpsAccuracy(null);
+            setMessage({ text: `Failed to get GPS location: ${err.message}`, type: 'error' });
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+    setGpsWatchId(watchId);
 };
 
 const handleSavePointCorrection = async (idx, newLatStr, newLngStr) => {
@@ -618,8 +699,8 @@ const handleSavePointCorrection = async (idx, newLatStr, newLngStr) => {
         return;
     }
 
-    if (!isGeoreferenced) {
-        setMessage({ text: 'Set anchors before manually correcting GPS coordinates.', type: 'error' });
+    if (parsedLat < -90 || parsedLat > 90 || parsedLng < -180 || parsedLng > 180) {
+        setMessage({ text: 'Latitude must be between -90 and 90, Longitude between -180 and 180.', type: 'error' });
         return;
     }
 
@@ -631,8 +712,8 @@ const handleSavePointCorrection = async (idx, newLatStr, newLngStr) => {
                 latitude: parsedLat,
                 longitude: parsedLng
             });
-            if (res.data) {
-                const updatedPoint = res.data;
+            const updatedPoint = res?.data || res;
+            if (updatedPoint && updatedPoint.x !== undefined) {
                 setPolygonPoints(prev => prev.map((p, i) => i === idx ? {
                     ...p,
                     x: updatedPoint.x,
@@ -644,6 +725,8 @@ const handleSavePointCorrection = async (idx, newLatStr, newLngStr) => {
                 } : p));
                 setMessage({ text: `Point ${idx + 1} precision GPS saved! Position updated on map.`, type: 'success' });
                 if (activeFloorPlan) fetchRoomsForFloorPlan(activeFloorPlan.id);
+            } else {
+                setMessage({ text: `Server did not confirm save for Point ${idx + 1}. Check if anchors are set and point is within building footprint.`, type: 'error' });
             }
         } else {
             let newX = pt.x;
@@ -1431,6 +1514,13 @@ const handleNodeChange = (e) => {
     const id = e.target.value;
     setSelectedNodeId(id);
     setIsEditingNodeGps(false);
+    // Stop any running node GPS watch when switching nodes
+    if (nodeGpsWatchId !== null) {
+        navigator.geolocation.clearWatch(nodeGpsWatchId);
+        setNodeGpsWatchId(null);
+        setIsWatchingNodeGPS(false);
+        setNodeGpsAccuracy(null);
+    }
     const node = nodes.find(n => n.id === id);
     if (node) {
         setNodeX(node.x_coordinate);
@@ -1502,7 +1592,21 @@ const handleCanvasClick = (e) => {
                 return;
             }
             const snapInfo = findWallSnapAndAdjacentRoom(normX, normY, activeRoom, rooms);
-            const snapGps = mapXyToGps(snapInfo.snapX, snapInfo.snapY, activeFloorPlan, activeMuseum);
+
+            // Compute entrance GPS precisely: interpolate between wall segment boundary GPS at t
+            let snapGps = { lat: null, lng: null };
+            if (snapInfo.b1Gps && snapInfo.b2Gps) {
+                // Linear interpolation along the wall segment GPS — exact position between the two boundary points
+                const t = snapInfo.tBest;
+                snapGps = {
+                    lat: snapInfo.b1Gps.lat + t * (snapInfo.b2Gps.lat - snapInfo.b1Gps.lat),
+                    lng: snapInfo.b1Gps.lng + t * (snapInfo.b2Gps.lng - snapInfo.b1Gps.lng)
+                };
+            } else {
+                // Fallback: derive from pixel map coordinates via georeference transform
+                snapGps = mapXyToGps(snapInfo.snapX, snapInfo.snapY, activeFloorPlan, activeMuseum);
+            }
+
             setPendingDoorway({
                 snapX: snapInfo.snapX,
                 snapY: snapInfo.snapY,
@@ -1653,6 +1757,7 @@ const handleSaveCoords = async () => {
             type: 'success'
         });
         setIsEditingNodeGps(false);
+        handleStopNodeGPSWatch();
         await fetchNodes();
     } catch (err) {
         setMessage({ text: extractErrorMessage(err, 'Failed to update coordinates'), type: 'error' });
@@ -1890,7 +1995,8 @@ const handleSaveBoundary = async () => {
             x: p.x,
             y: p.y,
             lat: p.lat,
-            lng: p.lng
+            lng: p.lng,
+            is_manually_corrected: p.is_manually_corrected || false
         }));
 
         if (activeFloorPlan) {
@@ -2432,7 +2538,10 @@ return (
                                                     ) : (
                                                         <button
                                                             type="button"
-                                                            onClick={() => setIsEditingNodeGps(false)}
+                                                            onClick={() => {
+                                                                handleStopNodeGPSWatch();
+                                                                setIsEditingNodeGps(false);
+                                                            }}
                                                             className="text-xs font-bold text-gray-500 hover:text-gray-700"
                                                         >
                                                             Cancel
@@ -2449,15 +2558,31 @@ return (
                                             )}
 
                                             {isEditingNodeGps && (
-                                                <div className="flex items-center justify-between pt-1">
+                                                <div className="flex items-center justify-between pt-1 gap-2 flex-wrap">
                                                     <span className="text-[11px] text-gray-500">Fine-tune real-world GPS coordinates:</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleUseGPSForPoint}
-                                                        className="text-[10px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded flex items-center gap-1 hover:bg-indigo-700"
-                                                    >
-                                                        <Navigation className="w-3 h-3" /> Use My GPS
-                                                    </button>
+                                                    {isWatchingNodeGPS ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded text-[11px] font-bold">
+                                                                <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                                                Live GPS{nodeGpsAccuracy ? ` ±${nodeGpsAccuracy}m` : ''}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleStopNodeGPSWatch}
+                                                                className="text-[10px] bg-red-50 text-red-700 border border-red-300 font-bold px-2 py-0.5 rounded flex items-center gap-1 hover:bg-red-100"
+                                                            >
+                                                                Stop
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleStartNodeGPSWatch}
+                                                            className="text-[10px] bg-indigo-600 text-white font-bold px-2 py-0.5 rounded flex items-center gap-1 hover:bg-indigo-700"
+                                                        >
+                                                            <Navigation className="w-3 h-3" /> Live GPS
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
 
@@ -2992,8 +3117,10 @@ return (
                                                         type="button"
                                                         onClick={() => {
                                                             if (editingPointIdx === i) {
+                                                                handleStopGPSWatch();
                                                                 setEditingPointIdx(null);
                                                             } else {
+                                                                handleStopGPSWatch();
                                                                 setEditingPointIdx(i);
                                                                 setEditLat(p.lat != null ? p.lat.toString() : '');
                                                                 setEditLng(p.lng != null ? p.lng.toString() : '');
@@ -3057,16 +3184,35 @@ return (
                                                     })()}
 
                                                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                                        {isWatchingGPS ? (
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                <div className="flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded text-[11px] font-bold">
+                                                                    <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                                                    Live GPS{gpsAccuracy ? ` ±${gpsAccuracy}m` : ''}
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleStopGPSWatch}
+                                                                    className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1"
+                                                                >
+                                                                    Stop
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleUseGPSForPoint}
+                                                                className="bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1"
+                                                            >
+                                                                <MapPin className="w-3 h-3 text-emerald-600" /> Live GPS Location
+                                                            </button>
+                                                        )}
                                                         <button
                                                             type="button"
-                                                            onClick={handleUseGPSForPoint}
-                                                            className="bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 px-2 py-1 rounded text-[11px] font-bold flex items-center gap-1"
-                                                        >
-                                                            <MapPin className="w-3 h-3 text-emerald-600" /> Use My GPS Location
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleSavePointCorrection(i, editLat, editLng)}
+                                                            onClick={() => {
+                                                                handleStopGPSWatch();
+                                                                handleSavePointCorrection(i, editLat, editLng);
+                                                            }}
                                                             disabled={loading || !editLat || !editLng}
                                                             className="bg-indigo-600 text-white hover:bg-indigo-700 px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1 shadow-xs disabled:opacity-50"
                                                         >
@@ -3083,6 +3229,7 @@ return (
                                                             </button>
                                                         )}
                                                     </div>
+
                                                 </div>
                                             )}
                                         </div>
@@ -3417,7 +3564,7 @@ return (
                                     Live On-Site Survey Instructions:
                                 </div>
                                 <p className="text-[11px] leading-relaxed text-cyan-900/90">
-                                    Physical WiFi RSS scanning requires native Android hardware. Walk to physical locations within this room with an Android device running the Vanalok app, open <strong>WiFi Survey Mode</strong>, tap the floor plan where you are standing, and save the fingerprint.
+                                    Physical WiFi RSS scanning requires native Android hardware. Walk to physical locations within this room with an Android device running the Digital Museum app, open <strong>WiFi Survey Mode</strong>, tap the floor plan where you are standing, and save the fingerprint.
                                 </p>
                                 <p className="text-[10px] text-cyan-800 font-medium">
                                     Note: iOS strictly restricts nearby WiFi BSSID scanning; survey & live correction are Android-only.

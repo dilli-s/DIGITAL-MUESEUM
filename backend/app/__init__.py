@@ -107,6 +107,8 @@ def create_app(config_class=Config):
     from app.routes.admin.health import admin_health_bp
     from app.routes.admin.users import admin_users_bp
     from app.routes.admin.upload import admin_upload_bp
+    from app.routes.tour import tour_bp
+    from app.routes.admin.tour import admin_tour_bp
     
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(museum_bp, url_prefix='/api')
@@ -122,6 +124,7 @@ def create_app(config_class=Config):
     app.register_blueprint(history_bp, url_prefix='/api/history')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
     app.register_blueprint(recommendations_bp, url_prefix='/api/recommendations')
+    app.register_blueprint(tour_bp, url_prefix='/api/tour')
     
     # Admin Blueprints
     app.register_blueprint(admin_dashboard_bp, url_prefix='/api/admin')
@@ -137,16 +140,43 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_health_bp, url_prefix='/api/admin')
     app.register_blueprint(admin_users_bp, url_prefix='/api/admin/users')
     app.register_blueprint(admin_upload_bp, url_prefix='/api/admin')
+    app.register_blueprint(admin_tour_bp, url_prefix='/api/admin')
 
     # Serve uploaded files
     @app.route('/uploads/<path:filename>')
+    @app.route('/api/uploads/<path:filename>')
+    @app.route('/static/uploads/<path:filename>')
+    @app.route('/api/static/uploads/<path:filename>')
     def serve_uploads(filename):
         import os
-        from flask import send_from_directory
-        return send_from_directory(os.path.join(os.getcwd(), 'uploads'), filename)
+        from flask import send_from_directory, make_response, abort
+        backend_uploads = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+        root_uploads = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads')
+        
+        target_dir = None
+        if os.path.exists(os.path.join(backend_uploads, filename)):
+            target_dir = backend_uploads
+        elif os.path.exists(os.path.join(root_uploads, filename)):
+            target_dir = root_uploads
+        elif os.path.exists(os.path.join(os.getcwd(), 'uploads', filename)):
+            target_dir = os.path.join(os.getcwd(), 'uploads')
+
+        if target_dir:
+            resp = make_response(send_from_directory(target_dir, filename))
+            origin = request.headers.get('Origin')
+            if origin:
+                resp.headers['Access-Control-Allow-Origin'] = origin
+                resp.headers['Vary'] = 'Origin'
+            else:
+                resp.headers['Access-Control-Allow-Origin'] = '*'
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            return resp
+        abort(404)
 
     # Import models so SQLAlchemy knows about them
     with app.app_context():
-        from app.models import museum, gallery, collection, exhibition, object, learning, story, activity, user, bookmark, learning_progress, activity_progress, history
+        from app.models import museum, gallery, collection, exhibition, object, learning, story, activity, user, bookmark, learning_progress, activity_progress, history, tour
 
     return app

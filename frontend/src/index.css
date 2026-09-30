@@ -1,17 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0B0B0C;
-  --color-surface: #17171A;
-  --color-surface-elevated: #201F23;
-  --color-accent: #C9A24B;
-  --color-text-primary: #F5F3EE;
-  --color-text-secondary: #A8A6A0;
-  --color-danger: #E4574C;
-  --color-success: #4CAF7D;
+  --color-bg-parchment: #f4ede1;
+  --color-surface-parchment: #fbf7ee;
+  --color-surface-card: #fdfbf7;
+  --color-border-parchment: #d8c8b0;
+  
+  --color-gold: #c89b3c;
+  --color-gold-light: #dfb758;
+  --color-gold-dark: #8f6826;
 
-  --font-sans: "Inter", sans-serif;
-  --font-serif: "Fraunces", serif;
+  --color-ink: #241a10;
+  --color-ink-light: #423223;
+  --color-ink-muted: #6e5842;
+
+  --color-danger: #c93b2b;
+  --color-success: #2e7d32;
+
+  --font-cinzel: "Cinzel", Georgia, serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 :root {
@@ -26,6 +34,68 @@
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
+  background-color: #f4ede1;
+  background-image: 
+    radial-gradient(ellipse at 80% 10%, rgba(200, 155, 60, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 90%, rgba(139, 90, 43, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #faf5eb 0%, #f4ede1 35%, #ede3d1 70%, #e6d8c3 100%);
+  color: #241a10;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-garamond {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+/* Antique Parchment Cards & Surfaces */
+.parchment-bg {
+  background-color: #f4ede1;
+  background-image: 
+    radial-gradient(ellipse at 80% 20%, rgba(200, 155, 60, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 80%, rgba(139, 90, 43, 0.07) 0%, transparent 60%),
+    linear-gradient(180deg, #fbf6ec 0%, #f4eee2 40%, #ede3d1 75%, #e5d6be 100%);
+  color: #241a10;
+}
+
+.parchment-card {
+  background: #fdfbf7;
+  border: 1px solid #d8c8b0;
+  box-shadow: 0 4px 20px -2px rgba(44, 34, 23, 0.07), 0 2px 6px -1px rgba(44, 34, 23, 0.03);
+}
+
+.parchment-card-hover:hover {
+  border-color: #c89b3c;
+  box-shadow: 0 10px 25px -4px rgba(44, 34, 23, 0.12), 0 0 10px rgba(200, 155, 60, 0.2);
+}
+
+/* Custom Scrollbar for antique parchment feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eae0ce;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bfae95;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8f6826;
+}
+
+/* Ensure all native select options have warm styling */
+select option {
+  background-color: #fdfbf7;
+  color: #241a10;
 }

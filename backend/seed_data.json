@@ -4,6 +4,8 @@
       "id": 1,
       "name": "National History Museum",
       "location": "London, UK",
+      "latitude": 51.4967,
+      "longitude": -0.1764,
       "category": "History",
       "description": "A world-class visitor attraction and leading science research centre.",
       "longDescription": "The National History Museum is a world-class visitor attraction and leading science research centre. We use our unique collections and unrivalled expertise to tackle the biggest challenges facing the world today. Explore our vast galleries covering paleontology, human evolution, and the natural world.",
@@ -12,12 +14,15 @@
       "collectionCount": 5,
       "objectCount": 3500,
       "exhibitionCount": 3,
-      "featured": true
+      "featured": true,
+      "image": "/uploads/museum_1_oriental_institute.jpg"
     },
     {
       "id": 2,
       "name": "Museum of Modern Art",
       "location": "New York, USA",
+      "latitude": 40.7614,
+      "longitude": -73.9776,
       "category": "Art",
       "description": "Discover the world's most significant collection of modern and contemporary art.",
       "longDescription": "The Museum of Modern Art plays a major role in developing and collecting modern art, and is often identified as one of the largest and most influential museums of modern art in the world.",
@@ -26,12 +31,15 @@
       "collectionCount": 4,
       "objectCount": 1200,
       "exhibitionCount": 2,
-      "featured": true
+      "featured": true,
+      "image": "/uploads/museum_2_moma.jpg"
     },
     {
       "id": 3,
       "name": "Louvre Museum",
       "location": "Paris, France",
+      "latitude": 48.8606,
+      "longitude": 2.3376,
       "category": "Art",
       "description": "The world's most-visited museum, home to some of the best-known works of art.",
       "longDescription": "The Louvre is the world's largest art museum and a historic monument in Paris. It showcases thousands of works of art, spanning from ancient civilizations to the mid-19th century.",
@@ -40,12 +48,15 @@
       "collectionCount": 8,
       "objectCount": 5000,
       "exhibitionCount": 4,
-      "featured": true
+      "featured": true,
+      "image": "/uploads/museum_3_louvre.jpg"
     },
     {
       "id": 4,
       "name": "Acropolis Museum",
       "location": "Athens, Greece",
+      "latitude": 37.9684,
+      "longitude": 23.7285,
       "category": "Archaeology",
       "description": "An archaeological museum focused on the findings of the archaeological site of the Acropolis of Athens.",
       "longDescription": "The Acropolis Museum is an archaeological museum built to house every artifact found on the rock and on the surrounding slopes, from the Greek Bronze Age to Roman and Byzantine Greece.",
@@ -54,12 +65,15 @@
       "collectionCount": 3,
       "objectCount": 4200,
       "exhibitionCount": 1,
-      "featured": false
+      "featured": false,
+      "image": "/uploads/museum_4_acropolis.jpg"
     },
     {
       "id": 5,
       "name": "National Museum of Natural History",
       "location": "Washington D.C., USA",
+      "latitude": 38.8913,
+      "longitude": -77.0261,
       "category": "Science",
       "description": "Explore the natural world and our place in it.",
       "longDescription": "Administered by the Smithsonian Institution, the museum's collections contain over 145 million specimens of plants, animals, fossils, minerals, rocks, meteorites, human remains, and human cultural artifacts.",
@@ -68,12 +82,15 @@
       "collectionCount": 10,
       "objectCount": 12600,
       "exhibitionCount": 5,
-      "featured": false
+      "featured": false,
+      "image": "/uploads/museum_5_natural_history.jpg"
     },
     {
       "id": 6,
       "name": "Kyoto National Museum",
       "location": "Kyoto, Japan",
+      "latitude": 34.9901,
+      "longitude": 135.7731,
       "category": "Culture",
       "description": "One of the major art museums in Japan, distinguished by its collection of pre-modern Japanese and Asian art.",
       "longDescription": "The Kyoto National Museum focuses on pre-modern Japanese works (with a heavy emphasis on the Heian period) and Asian art. The museum is a prominent institution for the study and preservation of Japan's cultural heritage.",
@@ -82,7 +99,8 @@
       "collectionCount": 6,
       "objectCount": 3100,
       "exhibitionCount": 2,
-      "featured": false
+      "featured": false,
+      "image": "/uploads/museum_6_kyoto.jpg"
     }
   ],
   "galleries": [
@@ -375,7 +393,7 @@
       "localName": "Tyrannosaurus",
       "scientificName": "Tyrannosaurus rex",
       "period": "Cretaceous",
-      "date": "68–66 million years ago",
+      "date": "68\u201366 million years ago",
       "origin": "North America",
       "category": "Fossil",
       "shortDescription": "A fully assembled Tyrannosaurus Rex skeleton.",
@@ -386,10 +404,9 @@
         "The T. rex bite force was about 8,000 pounds.",
         "They had excellent binocular vision, similar to modern hawks."
       ],
-      "image": "/images/trex.jpg",
+      "image": "/uploads/art_t-rex_skeleton.jpg",
       "images": [
-        "/images/trex-1.jpg",
-        "/images/trex-2.jpg"
+        "/uploads/art_t-rex_skeleton.jpg"
       ],
       "audio": "/audio/trex-narration.mp3",
       "video": "/videos/trex-walk.mp4",
@@ -412,7 +429,7 @@
       "localName": "Three-horned face",
       "scientificName": "Triceratops horridus",
       "period": "Cretaceous",
-      "date": "68–66 million years ago",
+      "date": "68\u201366 million years ago",
       "origin": "North America",
       "category": "Fossil",
       "shortDescription": "A well-preserved skull of a Triceratops.",
@@ -422,8 +439,10 @@
         "The skull alone could grow to be over 8 feet long.",
         "Its beak was similar to that of a parrot, useful for plucking tough vegetation."
       ],
-      "image": "/images/triceratops.jpg",
-      "images": [],
+      "image": "/uploads/art_triceratops_skull.jpg",
+      "images": [
+        "/uploads/art_triceratops_skull.jpg"
+      ],
       "featured": false,
       "relatedObjectIds": [
         1
@@ -450,13 +469,16 @@
         "She was named after the Beatles song 'Lucy in the Sky with Diamonds'.",
         "Only about 40% of her skeleton was found, but it was enough to deduce bipedalism."
       ],
-      "image": "/images/lucy.jpg",
+      "image": "/uploads/art_lucy_australopithecus.jpg",
       "featured": true,
       "relatedObjectIds": [
         1
       ],
       "themeIds": [
         2
+      ],
+      "images": [
+        "/uploads/art_lucy_australopithecus.jpg"
       ]
     },
     {
@@ -477,11 +499,14 @@
         "Pollock occasionally left handprints in the paint.",
         "The canvas was unstretched during the painting process."
       ],
-      "image": "/images/pollock.jpg",
+      "image": "/uploads/art_number_1a,_1948.jpg",
       "featured": true,
       "relatedObjectIds": [],
       "themeIds": [
         3
+      ],
+      "images": [
+        "/uploads/art_number_1a,_1948.jpg"
       ]
     },
     {
@@ -500,13 +525,16 @@
       "interestingFacts": [
         "Names of several pharaohs, including Ramesses II, are carved into it."
       ],
-      "image": "/images/sphinx.jpg",
+      "image": "/uploads/art_great_sphinx_of_tanis.jpg",
       "featured": false,
       "relatedObjectIds": [
         6
       ],
       "themeIds": [
         4
+      ],
+      "images": [
+        "/uploads/art_great_sphinx_of_tanis.jpg"
       ]
     },
     {
@@ -517,7 +545,7 @@
       "name": "Mona Lisa",
       "localName": "La Gioconda",
       "period": "Renaissance",
-      "date": "c. 1503–1506",
+      "date": "c. 1503\u20131506",
       "origin": "Italy",
       "category": "Painting",
       "shortDescription": "Portrait painting by Leonardo da Vinci.",
@@ -527,13 +555,16 @@
         "It was stolen from the Louvre in 1911 and recovered two years later.",
         "The painting is surprisingly small in person."
       ],
-      "image": "/images/monalisa.jpg",
+      "image": "/uploads/art_mona_lisa.jpg",
       "featured": true,
       "relatedObjectIds": [
         5
       ],
       "themeIds": [
         3
+      ],
+      "images": [
+        "/uploads/art_mona_lisa.jpg"
       ]
     }
   ],

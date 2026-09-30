@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin } from 'lucide-react';
+import { getMediaUrl } from '../../utils/media';
 
 const ExhibitionCard = ({ exhibition, museumId }) => {
+  const [imageError, setImageError] = useState(false);
+  const rawImage = exhibition.image || exhibition.image_url;
+  const imageUrl = rawImage ? getMediaUrl(rawImage) : null;
   // Determine Status
   let status = "Permanent";
   let statusColor = "bg-neutral-600";
@@ -27,9 +31,18 @@ const ExhibitionCard = ({ exhibition, museumId }) => {
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-lg transition-all flex flex-col h-full">
       <div className="h-48 bg-neutral-200 relative overflow-hidden flex-shrink-0 flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-tr from-neutral-300 to-neutral-100 flex items-center justify-center">
-          <Calendar className="w-16 h-16 text-neutral-400" />
-        </div>
+        {imageUrl && !imageError ? (
+          <img 
+            src={imageUrl} 
+            alt={exhibition.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-tr from-neutral-300 to-neutral-100 flex items-center justify-center">
+            <Calendar className="w-16 h-16 text-neutral-400" />
+          </div>
+        )}
         <div className={`absolute top-4 left-4 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${statusColor}`}>
           {status}
         </div>
@@ -56,7 +69,10 @@ const ExhibitionCard = ({ exhibition, museumId }) => {
         
         <div className="flex flex-col gap-2 mb-6">
           <div className="flex items-center text-sm font-medium text-neutral-500">
-            <span>{exhibition.objectIds?.length || 0} Objects</span>
+            {(() => {
+              const count = exhibition.objectCount ?? exhibition.objectIds?.length ?? 0;
+              return <span>{count} {count === 1 ? 'Object' : 'Objects'}</span>;
+            })()}
           </div>
         </div>
         

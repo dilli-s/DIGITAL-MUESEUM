@@ -18,6 +18,7 @@ class OfflineStore {
   static const String tableCache = 'cache';
   static const String keyMuseums = 'offline_museums';
   static const String keyGalleries = 'offline_galleries';
+  static const String keyCollections = 'offline_collections';
   static const String keyObjects = 'offline_objects';
   static const String keyNodes = 'offline_nodes';
   static const String keyEdges = 'offline_edges';
@@ -100,18 +101,56 @@ class OfflineStore {
     return jsonList.map((j) => Gallery.fromJson(j)).toList();
   }
 
+  // ─── Collections ─────────────────────────────────────────────
+
+  Future<void> saveCollections(List<MuseumCollection> collections) async {
+    await _save(
+        keyCollections, jsonEncode(collections.map((c) => c.toJson()).toList()));
+  }
+
+  Future<List<MuseumCollection>> getCollections() async {
+    final jsonString = await _get(keyCollections);
+    if (jsonString == null) return [];
+    final List<dynamic> jsonList = jsonDecode(jsonString);
+    return jsonList.map((j) => MuseumCollection.fromJson(j)).toList();
+  }
+
   // ─── Objects ─────────────────────────────────────────────────
 
   Future<void> saveObjects(List<MuseumObject> objects) async {
+    final uniqueObjects = <String, MuseumObject>{};
+    for (final o in objects) {
+      final key = '${o.museumId}_${o.name.toLowerCase().trim()}';
+      if (!uniqueObjects.containsKey(key) ||
+          (uniqueObjects[key]!.galleryId == null && o.galleryId != null)) {
+        uniqueObjects[key] = o;
+      }
+    }
+    final cleanList = uniqueObjects.values.toList();
     await _save(
-        keyObjects, jsonEncode(objects.map((o) => o.toJson()).toList()));
+        keyObjects, jsonEncode(cleanList.map((o) => o.toJson()).toList()));
   }
 
   Future<List<MuseumObject>> getObjects() async {
     final jsonString = await _get(keyObjects);
     if (jsonString == null) return [];
     final List<dynamic> jsonList = jsonDecode(jsonString);
-    return jsonList.map((j) => MuseumObject.fromJson(j)).toList();
+    final rawObjects = jsonList.map((j) => MuseumObject.fromJson(j)).toList();
+    final uniqueObjects = <String, MuseumObject>{};
+    for (final o in rawObjects) {
+      final key = '${o.museumId}_${o.name.toLowerCase().trim()}';
+      if (!uniqueObjects.containsKey(key) ||
+          (uniqueObjects[key]!.galleryId == null && o.galleryId != null)) {
+        uniqueObjects[key] = o;
+      }
+    }
+    final cleanList = uniqueObjects.values.toList();
+    if (cleanList.length != rawObjects.length) {
+      // Self-heal SQLite database cache on device
+      await _save(
+          keyObjects, jsonEncode(cleanList.map((o) => o.toJson()).toList()));
+    }
+    return cleanList;
   }
 
   // ─── Nodes ───────────────────────────────────────────────────
@@ -272,7 +311,9 @@ class OfflineStore {
       final fullUrl = ApiConfig.getMediaUrl(url);
       if (fullUrl.isEmpty) return null;
 
-      final response = await http.get(Uri.parse(fullUrl));
+      final response = await http
+          .get(Uri.parse(fullUrl))
+          .timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
         await localFile.writeAsBytes(response.bodyBytes);
         return localFile.path;
@@ -313,9 +354,11 @@ class OfflineStore {
     try {
       // Step 1: Fetch museums list
       onProgress(5, 'Loading museum info...');
-      final mRes = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/museums?per_page=50'),
-      );
+      final mRes = await http
+          .get(
+            Uri.parse('${ApiConfig.baseUrl}/museums?per_page=50'),
+          )
+          .timeout(const Duration(seconds: 4));
       List<Museum> museums = [];
       if (mRes.statusCode == 200) {
         final d = jsonDecode(mRes.body);
@@ -325,10 +368,12 @@ class OfflineStore {
 
       // Step 2: Fetch galleries for this museum
       onProgress(15, 'Downloading galleries...');
-      final gRes = await http.get(
-        Uri.parse(
-            '${ApiConfig.baseUrl}/galleries?museum_id=$museumId&per_page=100'),
-      );
+      final gRes = await http
+          .get(
+            Uri.parse(
+                '${ApiConfig.baseUrl}/galleries?museum_id=$museumId&per_page=100'),
+          )
+          .timeout(const Duration(seconds: 4));
       List<Gallery> galleries = [];
       if (gRes.statusCode == 200) {
         final d = jsonDecode(gRes.body);
@@ -336,12 +381,25 @@ class OfflineStore {
         galleries = list.map((e) => Gallery.fromJson(e)).toList();
       }
 
+      onProgress(20, 'Downloading collections...');
+      final cRes = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}/collections?per_page=500'))
+          .timeout(const Duration(seconds: 4));
+      List<MuseumCollection> collections = [];
+      if (cRes.statusCode == 200) {
+        final d = jsonDecode(cRes.body);
+        final list = (d['data'] as List?) ?? [];
+        collections = list.map((e) => MuseumCollection.fromJson(e)).toList();
+      }
+
       // Step 3: Fetch objects for this museum
       onProgress(25, 'Downloading exhibits...');
-      final oRes = await http.get(
-        Uri.parse(
-            '${ApiConfig.baseUrl}/objects?museum_id=$museumId&per_page=500'),
-      );
+      final oRes = await http
+          .get(
+            Uri.parse(
+                '${ApiConfig.baseUrl}/objects?museum_id=$museumId&per_page=500'),
+          )
+          .timeout(const Duration(seconds: 4));
       List<MuseumObject> objects = [];
       if (oRes.statusCode == 200) {
         final d = jsonDecode(oRes.body);
@@ -351,9 +409,11 @@ class OfflineStore {
 
       // Step 4: Fetch map graph (nodes, edges, floor plans)
       onProgress(40, 'Downloading map data...');
-      final graphRes = await http.get(
-        Uri.parse('${ApiConfig.mapServiceUrl}/graph?museum_id=$museumId'),
-      );
+      final graphRes = await http
+          .get(
+            Uri.parse('${ApiConfig.mapServiceUrl}/graph?museum_id=$museumId'),
+          )
+          .timeout(const Duration(seconds: 4));
       List<MapNode> nodes = [];
       List<MapEdge> edges = [];
       List<FloorPlan> floorPlans = [];
@@ -375,10 +435,12 @@ class OfflineStore {
       onProgress(55, 'Downloading stories...');
       List<Story> stories = [];
       try {
-        final sRes = await http.get(
-          Uri.parse(
-              '${ApiConfig.baseUrl}/admin/stories?museum_id=$museumId&per_page=500'),
-        );
+        final sRes = await http
+            .get(
+              Uri.parse(
+                  '${ApiConfig.baseUrl}/admin/stories?museum_id=$museumId&per_page=500'),
+            )
+            .timeout(const Duration(seconds: 4));
         if (sRes.statusCode == 200) {
           final d = jsonDecode(sRes.body);
           final list = (d['data'] as List?) ?? (d as List?) ?? [];
@@ -392,10 +454,12 @@ class OfflineStore {
       onProgress(62, 'Downloading learning content...');
       List<LearningResource> learning = [];
       try {
-        final lRes = await http.get(
-          Uri.parse(
-              '${ApiConfig.baseUrl}/learning?per_page=500'),
-        );
+        final lRes = await http
+            .get(
+              Uri.parse(
+                  '${ApiConfig.baseUrl}/learning?per_page=500'),
+            )
+            .timeout(const Duration(seconds: 4));
         if (lRes.statusCode == 200) {
           final d = jsonDecode(lRes.body);
           final list = (d['data'] as List?) ?? (d as List?) ?? [];
@@ -409,10 +473,12 @@ class OfflineStore {
       onProgress(68, 'Downloading exhibitions...');
       List<Exhibition> exhibitions = [];
       try {
-        final eRes = await http.get(
-          Uri.parse(
-              '${ApiConfig.baseUrl}/exhibitions?museum_id=$museumId&per_page=100'),
-        );
+        final eRes = await http
+            .get(
+              Uri.parse(
+                  '${ApiConfig.baseUrl}/exhibitions?museum_id=$museumId&per_page=100'),
+            )
+            .timeout(const Duration(seconds: 4));
         if (eRes.statusCode == 200) {
           final d = jsonDecode(eRes.body);
           final list = (d['data'] as List?) ?? (d as List?) ?? [];

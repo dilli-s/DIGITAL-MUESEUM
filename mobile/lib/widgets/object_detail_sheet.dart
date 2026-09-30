@@ -52,8 +52,12 @@ class _OfflineAwareImageState extends State<OfflineAwareImage> {
     final rawUrl = widget.imageUrl.trim();
     if (rawUrl.isEmpty) return;
 
-    // 1. Direct local file path
-    if (rawUrl.startsWith('/') || rawUrl.startsWith('file://')) {
+    // 1. Direct local file path (avoid checking on server upload paths)
+    if (rawUrl.startsWith('file://') ||
+        (rawUrl.startsWith('/') &&
+            !rawUrl.startsWith('/uploads') &&
+            !rawUrl.startsWith('/api/') &&
+            !rawUrl.startsWith('/static/'))) {
       final clean = rawUrl.replaceFirst('file://', '');
       if (await File(clean).exists()) {
         if (mounted) setState(() => _localPath = clean);
@@ -249,7 +253,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                   maxHeight: MediaQuery.of(context).size.height * 0.85,
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -257,7 +261,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                         child: Container(
                           width: 48,
                           height: 4,
-                          margin: const EdgeInsets.only(bottom: 20),
+                          margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: Colors.grey[300],
                             borderRadius: BorderRadius.circular(2),
@@ -270,11 +274,11 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                           widget.obj.image!.trim().isNotEmpty)
                         Container(
                           width: double.infinity,
-                          height: 200,
-                          margin: const EdgeInsets.only(bottom: 20),
+                          height: 160,
+                          margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           clipBehavior: Clip.hardEdge,
                           child: OfflineAwareImage(
@@ -290,13 +294,13 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                 : 'Artifact')
                             .toUpperCase(),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Colors.grey[500],
                           letterSpacing: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
 
                       // Name
                       Text(
@@ -304,7 +308,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                             ? widget.obj.name.trim()
                             : 'Unnamed Exhibit',
                         style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
@@ -313,19 +317,19 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                       // Naming Metadata
                       if (hasLocalName || hasCommonName || hasScientificName)
                         Padding(
-                          padding: const EdgeInsets.only(top: 8, bottom: 12),
+                          padding: const EdgeInsets.only(top: 4, bottom: 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (hasLocalName)
                                 Text(
                                   'Local name: ${widget.obj.localName!.trim()}',
-                                  style: TextStyle(color: Colors.grey[700]),
+                                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
                                 ),
                               if (hasCommonName)
                                 Text(
                                   'Common name: ${widget.obj.commonName!.trim()}',
-                                  style: TextStyle(color: Colors.grey[700]),
+                                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
                                 ),
                               if (hasScientificName)
                                 Text(
@@ -333,6 +337,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                   style: TextStyle(
                                     color: Colors.grey[700],
                                     fontStyle: FontStyle.italic,
+                                    fontSize: 12,
                                   ),
                                 ),
                             ],
@@ -342,14 +347,14 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                       // Period & Origin
                       if (hasPeriod || hasOrigin)
                         Padding(
-                          padding: const EdgeInsets.only(top: 4.0, bottom: 16.0),
+                          padding: const EdgeInsets.only(top: 2.0, bottom: 8.0),
                           child: Text(
                             [
                               if (hasPeriod) widget.obj.period!.trim(),
                               if (hasOrigin) widget.obj.origin!.trim(),
                             ].join(' · '),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.grey[600],
                               fontWeight: FontWeight.w500,
                             ),
@@ -359,13 +364,13 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                       // Description
                       if (hasDescription)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 20.0),
+                          padding: const EdgeInsets.only(bottom: 12.0),
                           child: Text(
                             widget.obj.description!.trim(),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: Colors.grey[700],
-                              height: 1.5,
+                              height: 1.3,
                             ),
                           ),
                         ),
@@ -377,9 +382,9 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                           child: Text(
                             widget.obj.significance!.trim(),
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: Colors.grey[700],
-                              height: 1.5,
+                              height: 1.3,
                             ),
                           ),
                         ),
@@ -393,13 +398,13 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                             children: validFacts
                                 .map(
                                   (fact) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
+                                    padding: const EdgeInsets.only(bottom: 4),
                                     child: Text(
                                       '• ${fact.trim()}',
                                       style: TextStyle(
-                                        fontSize: 14,
+                                        fontSize: 13,
                                         color: Colors.grey[700],
-                                        height: 1.4,
+                                        height: 1.3,
                                       ),
                                     ),
                                   ),
@@ -413,18 +418,18 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                         _DetailSection(
                           title: 'More Images',
                           child: SizedBox(
-                            height: 88,
+                            height: 64,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: validImages.length,
                               separatorBuilder: (_, _) =>
                                   const SizedBox(width: 8),
                               itemBuilder: (_, index) => ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
                                 child: OfflineAwareImage(
                                   imageUrl: validImages[index],
-                                  width: 112,
-                                  height: 88,
+                                  width: 80,
+                                  height: 64,
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -449,11 +454,11 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                       // Audio Guide (Offline-first player)
                       if (hasAudio)
                         Container(
-                          padding: const EdgeInsets.all(16),
-                          margin: const EdgeInsets.only(bottom: 20),
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF9FAFB),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.grey[200]!),
                           ),
                           child: Column(
@@ -463,14 +468,14 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                 children: [
                                   const Icon(
                                     LucideIcons.volume2,
-                                    size: 16,
+                                    size: 14,
                                     color: Color(0xFF2E6A4B),
                                   ),
                                   const SizedBox(width: 6),
                                   const Text(
                                     'Audio Guide',
                                     style: TextStyle(
-                                      fontSize: 13,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF2E6A4B),
                                     ),
@@ -497,7 +502,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                     ),
                                 ],
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               Row(
                                 children: [
                                   IconButton(
@@ -506,6 +511,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                           ? LucideIcons.pause
                                           : LucideIcons.play,
                                       color: const Color(0xFF17211F),
+                                      size: 18,
                                     ),
                                     onPressed: () {
                                       if (isPlaying) {
@@ -517,7 +523,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                     style: IconButton.styleFrom(
                                       backgroundColor: Colors.white,
                                       shadowColor: Colors.black12,
-                                      elevation: 2,
+                                      elevation: 1,
                                     ),
                                   ),
                                   Expanded(
@@ -544,7 +550,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                   Text(
                                     _formatDuration(position),
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       color: Colors.grey[600],
                                     ),
                                   ),
@@ -559,7 +565,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                         children: [
                           if (widget.onNavigate != null)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
+                              padding: const EdgeInsets.only(bottom: 8.0),
                               child: SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
@@ -569,7 +575,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                   },
                                   icon: const Icon(
                                     LucideIcons.navigation,
-                                    size: 18,
+                                    size: 16,
                                     color: Colors.white,
                                   ),
                                   label: const Text(
@@ -577,18 +583,18 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
-                                      fontSize: 15,
+                                      fontSize: 13,
                                     ),
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.indigo[600],
                                     padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
+                                      vertical: 12,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    elevation: 2,
+                                    elevation: 1,
                                   ),
                                 ),
                               ),
@@ -597,14 +603,14 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                           // Explore More Button (Vanalok Cultural Emerald)
                           if (widget.onExploreMore != null)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
+                              padding: const EdgeInsets.only(bottom: 8.0),
                               child: SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
                                   onPressed: widget.onExploreMore,
                                   icon: const Icon(
                                     LucideIcons.compass,
-                                    size: 18,
+                                    size: 16,
                                     color: Colors.white,
                                   ),
                                   label: const Text(
@@ -612,18 +618,18 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
-                                      fontSize: 15,
+                                      fontSize: 13,
                                     ),
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF2E6A4B),
                                     padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
+                                      vertical: 12,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    elevation: 2,
+                                    elevation: 1,
                                   ),
                                 ),
                               ),
@@ -638,10 +644,10 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                     backgroundColor: Colors.grey[900],
                                     foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
+                                      vertical: 12,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                     elevation: 0,
                                   ),
@@ -649,6 +655,7 @@ class _ObjectDetailSheetState extends State<ObjectDetailSheet> {
                                     'Close',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ),
@@ -679,11 +686,11 @@ class _DetailSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -691,12 +698,12 @@ class _DetailSection extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: Colors.grey[500],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           child,
         ],
       ),

@@ -24,17 +24,28 @@ class ApiConfig {
 
   static String getMediaUrl(String path) {
     if (path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    final cleanPath = path.startsWith('/') ? path.substring(1) : path;
-    // Serve media files from the backend's root
     final host = baseUrl.replaceAll('/api', '');
+    if (path.startsWith('http://localhost:5000') || path.startsWith('http://127.0.0.1:5000')) {
+      final sub = path.replaceFirst(RegExp(r'^http:\/\/(localhost|127\.0\.0\.1):5000'), '');
+      return '$host$sub';
+    }
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    var cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    if (cleanPath.startsWith('uploads/')) {
+      cleanPath = cleanPath.substring(8);
+    }
+    // Serve media files from the backend's root
     return '$host/uploads/$cleanPath';
   }
 
   static String getFloorPlanImageUrl(String path) {
     if (path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
     final mapHost = mapServiceUrl.replaceAll('/api', '');
+    if (path.startsWith('http://localhost:5001') || path.startsWith('http://127.0.0.1:5001')) {
+      final sub = path.replaceFirst(RegExp(r'^http:\/\/(localhost|127\.0\.0\.1):5001'), '');
+      return '$mapHost$sub';
+    }
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
     if (path.startsWith('/api/')) {
       return '$mapHost$path';
     }

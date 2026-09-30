@@ -37,6 +37,10 @@ def seed(include_examples=False):
                 museum.description = m_data.get('description')
                 museum.location = m_data.get('location')
                 museum.image = m_data.get('image')
+                if 'latitude' in m_data:
+                    museum.latitude = m_data.get('latitude')
+                if 'longitude' in m_data:
+                    museum.longitude = m_data.get('longitude')
 
             db.session.flush()
 

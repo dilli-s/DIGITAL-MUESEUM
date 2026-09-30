@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Image as ImageIcon } from 'lucide-react';
+import { getMediaUrl } from '../../utils/media';
 
 const GalleryCard = ({ gallery, museumId }) => {
+  const [imageError, setImageError] = useState(false);
+  const rawImg = gallery.image_url || gallery.image;
+  const imgUrl = rawImg ? getMediaUrl(rawImg) : null;
+
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-lg transition-all flex flex-col h-full">
       <div className="h-48 bg-neutral-200 relative overflow-hidden flex-shrink-0 flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-tr from-neutral-300 to-neutral-100 flex items-center justify-center">
-          <ImageIcon className="w-16 h-16 text-neutral-400" />
-        </div>
+        {imgUrl && !imageError ? (
+          <img 
+            src={imgUrl} 
+            alt={gallery.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-tr from-neutral-300 to-neutral-100 flex items-center justify-center">
+            <ImageIcon className="w-16 h-16 text-neutral-400" />
+          </div>
+        )}
       </div>
       <div className="p-6 flex-grow flex flex-col">
         <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
@@ -19,7 +33,7 @@ const GalleryCard = ({ gallery, museumId }) => {
           {gallery.description}
         </p>
         <div className="flex items-center text-sm font-medium text-neutral-500 mb-6">
-          <span>{gallery.objectCount} Objects</span>
+          <span>{gallery.objectCount ?? gallery.object_count ?? 0} {(gallery.objectCount ?? gallery.object_count) === 1 ? 'Object' : 'Objects'}</span>
         </div>
         <Link 
           to={`/museum/${museumId}/gallery/${gallery.id}`} 

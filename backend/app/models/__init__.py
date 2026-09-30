@@ -13,3 +13,4 @@ from .bookmark import Bookmark
 from .learning_progress import LearningProgress
 from .activity_progress import ActivityProgress
 from .history import UserHistory
+from .tour import TourNode, TourEdge

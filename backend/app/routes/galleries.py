@@ -5,13 +5,17 @@ from app.extensions import db
 gallery_bp = Blueprint('gallery', __name__)
 
 def serialize_gallery(g):
+    obj_count = len(g.objects) if hasattr(g, 'objects') and g.objects else 0
     return {
         "id": g.id,
         "museum_id": g.museum_id,
         "name": g.name,
         "description": g.description,
         "image": g.image,
-        "boundary_polygon": getattr(g, 'boundary_polygon', None)
+        "floor": getattr(g, 'floor', 'Ground Floor'),
+        "boundary_polygon": getattr(g, 'boundary_polygon', None),
+        "objectCount": obj_count,
+        "object_count": obj_count
     }
 
 @gallery_bp.route('/galleries', methods=['GET'])

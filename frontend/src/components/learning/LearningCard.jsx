@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, BookOpen, Target, Clock, BarChart } from 'lucide-react';
 import { getObject } from '../../services/api';
+import { getMediaUrl } from '../../utils/media';
 
 const LearningCard = ({ item, type }) => {
   const [objectName, setObjectName] = useState(null);
@@ -39,7 +40,15 @@ const LearningCard = ({ item, type }) => {
     <div className="group bg-white rounded-2xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-lg transition-all flex flex-col h-full">
       {item.image && (
         <div className="h-48 relative overflow-hidden flex-shrink-0">
-          <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img 
+            src={getMediaUrl(item.image)} 
+            alt={item.title} 
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.parentElement.style.display = 'none';
+            }}
+          />
         </div>
       )}
       

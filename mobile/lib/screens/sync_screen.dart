@@ -78,12 +78,13 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
 
       final hasMatchingFloor = widget.initialFloorPlanId == null ||
           cachedFloorPlans.any((p) => p.id == widget.initialFloorPlanId);
+      final isMuseumCached = (cachedMuseumId == null || cachedMuseumId == widget.museumId) &&
+          cachedNodes.isNotEmpty &&
+          cachedFloorPlans.isNotEmpty;
 
       if (!widget.forceSync &&
-          cachedMuseumId == widget.museumId &&
-          cachedNodes.isNotEmpty &&
-          cachedFloorPlans.isNotEmpty &&
-          hasMatchingFloor) {
+          isMuseumCached &&
+          (hasMatchingFloor || cachedFloorPlans.isNotEmpty)) {
         // Fast-path: local data already cached
         setState(() {
           _progress = 100;
@@ -91,7 +92,7 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
           _isComplete = true;
         });
         _floorPlans = cachedFloorPlans;
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 300));
         if (mounted) _proceedToMuseum();
         return;
       }
@@ -118,7 +119,7 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
           _isComplete = true;
         });
 
-        await Future.delayed(const Duration(milliseconds: 600));
+        await Future.delayed(const Duration(milliseconds: 400));
         if (mounted) {
           _proceedToMuseum();
         }
@@ -126,25 +127,60 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
     } catch (e) {
       debugPrint('SyncScreen error: $e');
       List<MapNode> cachedNodes = [];
+      List<FloorPlan> cachedFloorPlans = [];
       try {
         cachedNodes = await _offlineStore.getNodes();
+        cachedFloorPlans = await _offlineStore.getFloorPlans();
       } catch (_) {}
-      final hasCachedData = cachedNodes.isNotEmpty;
+      final hasCachedData = cachedNodes.isNotEmpty && cachedFloorPlans.isNotEmpty;
+
+      // When cached offline data is present, never interrupt the user with an error screen.
+      // Seamlessly proceed into the museum with existing offline content.
+      if (hasCachedData) {
+        debugPrint('SyncScreen: Server unreachable ($e). Seamlessly launching offline content.');
+        _floorPlans = cachedFloorPlans;
+        if (mounted) {
+          setState(() {
+            _progress = 100;
+            _statusMessage = 'Launching with offline data...';
+            _isComplete = true;
+            _errorMessage = null;
+            _canContinueOffline = false;
+          });
+          await Future.delayed(const Duration(milliseconds: 300));
+          if (mounted) {
+            _proceedToMuseum();
+          }
+        }
+        return;
+      }
+
+      String friendlyMessage = e.toString().replaceAll("Exception: ", "");
+      if (friendlyMessage.contains('Connection refused') ||
+          friendlyMessage.contains('SocketException')) {
+        friendlyMessage =
+            'Cannot reach server at 127.0.0.1:5000. '
+            'Ensure backend is running (python run.py) and adb reverse is active.';
+      }
 
       if (mounted) {
         setState(() {
-          _errorMessage = hasCachedData
-              ? 'Unable to refresh online data. You can continue with existing offline content.'
-              : 'Failed to download museum guide: ${e.toString().replaceAll("Exception: ", "")}';
-          _canContinueOffline = hasCachedData;
+          _errorMessage = 'Failed to download museum guide: $friendlyMessage';
+          _canContinueOffline = false;
         });
       }
     }
   }
 
-  void _proceedToMuseum() {
+  Future<void> _proceedToMuseum() async {
     final provider = context.read<MuseumProvider>();
     provider.setSelectedMuseum(widget.museumId);
+
+    if (_floorPlans.isEmpty) {
+      try {
+        _floorPlans = await _offlineStore.getFloorPlans();
+      } catch (_) {}
+    }
 
     // Resolve floor plan
     String? floorId = widget.initialFloorPlanId;
@@ -156,13 +192,15 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
       provider.setSelectedFloor(floorId);
     }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => PhysicalMuseumScreen(
-          initialEntranceNodeId: widget.entranceNodeId,
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PhysicalMuseumScreen(
+            initialEntranceNodeId: widget.entranceNodeId,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   @override
@@ -201,7 +239,7 @@ class _SyncScreenState extends State<SyncScreen> with SingleTickerProviderStateM
                         ),
                         SizedBox(width: 8),
                         Text(
-                          'VANALOK OFFLINE SETUP',
+                          'DIGITAL MUSEUM OFFLINE SETUP',
                           style: TextStyle(
                             color: Color(0xFFE2847A),
                             fontSize: 11,

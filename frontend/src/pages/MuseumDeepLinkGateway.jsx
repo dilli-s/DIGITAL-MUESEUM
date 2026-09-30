@@ -43,7 +43,7 @@ const MuseumDeepLinkGateway = () => {
         </div>
 
         <div>
-          <span className="text-xs uppercase tracking-widest text-indigo-400 font-semibold">Vanalok Museum Experience</span>
+          <span className="text-xs uppercase tracking-widest text-indigo-400 font-semibold">Digital Museum Experience</span>
           <h1 className="text-2xl font-bold mt-1 text-white">
             {isLoading ? 'Loading Museum...' : (museum?.name || 'Welcome to Museum')}
           </h1>
@@ -54,7 +54,7 @@ const MuseumDeepLinkGateway = () => {
 
         {appAttempted && (
           <div className="p-3 bg-indigo-900/40 rounded-xl border border-indigo-500/40 text-xs text-indigo-200 text-left">
-            💡 Launching Vanalok app directly. If the app is already installed, it will open to this museum automatically.
+            💡 Launching Digital Museum app directly. If the app is already installed, it will open to this museum automatically.
           </div>
         )}
 
@@ -64,7 +64,7 @@ const MuseumDeepLinkGateway = () => {
             className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl flex items-center justify-center space-x-2 transition shadow-lg shadow-indigo-600/30"
           >
             <Smartphone className="w-5 h-5" />
-            <span>Open in Vanalok App</span>
+            <span>Open in Digital Museum App</span>
           </a>
 
           <a

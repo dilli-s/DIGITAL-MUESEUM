@@ -144,6 +144,7 @@ def edit_boundary_point(room_id, point_id):
         res, err, status_code = update_boundary_point(room_id, point_id, data)
         if err:
             return jsonify({"error": err}), status_code
+        invalidate_rooms_cache()
         invalidate_room_route_cache(room_id)
         return jsonify({"data": res, "success": True}), status_code
     except Exception as e:
