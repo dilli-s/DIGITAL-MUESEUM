@@ -156,15 +156,19 @@ def main():
     os.makedirs(root_uploads, exist_ok=True)
 
     print('Cleaning up old junk images in uploads directory...')
-    preserve_files = {'apartment_4room_plan.png', 'oriental_institute_floorplan.png'}
+    def should_preserve(fname):
+        if fname.startswith('.') or fname.startswith('panorama_') or fname.endswith('_plan.png') or fname.startswith('art_') or fname.startswith('museum_'):
+            return True
+        return fname in {'apartment_4room_plan.png', 'oriental_institute_floorplan.png'}
+
     for f in os.listdir(uploads_dir):
-        if f not in preserve_files and not f.startswith('.'):
+        if not should_preserve(f):
             p = os.path.join(uploads_dir, f)
             if os.path.isfile(p):
                 os.remove(p)
 
     for f in os.listdir(root_uploads):
-        if f not in preserve_files and not f.startswith('.'):
+        if not should_preserve(f):
             p = os.path.join(root_uploads, f)
             if os.path.isfile(p):
                 os.remove(p)

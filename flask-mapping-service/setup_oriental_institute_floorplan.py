@@ -1,12 +1,19 @@
 import math
 import uuid
 import json
+from typing import TypedDict, List, Tuple, Any
 from app import create_app
 from app.utils.db import execute_query
 from app.utils.geo import haversine_distance
 from app.utils.geometry import point_in_polygon, segment_crosses_any_wall
 
 app = create_app()
+
+class RoomData(TypedDict):
+    name: str
+    type: str
+    walkable: bool
+    boundaries: List[Tuple[float, float]]
 
 PLAN_ID = 'f1000000-0000-0000-0000-000000000001'
 MUSEUM_ID = 1  # Oriental Institute Museum / Primary Museum
@@ -126,7 +133,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
     execute_query("DELETE FROM rooms WHERE floor_plan_id = %s::uuid", (plan_id,), commit=True)
 
     # 5. Define the 15 Gallery Rooms matching the realistic floor plan
-    rooms_data = [
+    rooms_data: List[RoomData] = [
         {
             "name": "Lobby",
             "type": "gallery",
@@ -230,8 +237,8 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
         room_ids[r["name"]] = rid
 
         for order, (bx, by) in enumerate(r["boundaries"]):
-            blat = lat0 + by * scale_y
-            blng = lng0 + bx * scale_x
+            blat = lat0 + float(by) * scale_y
+            blng = lng0 + float(bx) * scale_x
             execute_query(
                 "INSERT INTO room_boundaries (room_id, corner_order, x, y, latitude, longitude) "
                 "VALUES (%s::uuid, %s, %s, %s, %s, %s)",
@@ -243,8 +250,11 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
 
     # 6. Synchronize galleries in the galleries table for Museum 1
     execute_query("UPDATE map_nodes SET object_id = NULL WHERE floor_plan_id = %s::uuid;", (plan_id,), commit=True)
+    execute_query("UPDATE objects SET gallery_id = NULL WHERE museum_id = %s;", (MUSEUM_ID,), commit=True)
     execute_query("DELETE FROM objects WHERE museum_id = %s AND id > 10;", (MUSEUM_ID,), commit=True)
     execute_query("DELETE FROM galleries WHERE museum_id = %s;", (MUSEUM_ID,), commit=True)
+    execute_query("SELECT setval(pg_get_serial_sequence('galleries', 'id'), COALESCE(MAX(id), 0) + 1, false) FROM galleries;", commit=True)
+    execute_query("SELECT setval(pg_get_serial_sequence('objects', 'id'), COALESCE(MAX(id), 0) + 1, false) FROM objects;", commit=True)
     gallery_db_ids = {}
     for r in rooms_data:
         g_row = execute_query(
@@ -277,9 +287,9 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
     ]
 
     for d in doorways_data:
-        rid = room_ids[d["room"]]
+        rid = room_ids[str(d["room"])]
         conn_room = d["connected_room"]
-        c_rid = room_ids[conn_room] if conn_room else None
+        c_rid = room_ids[str(conn_room)] if conn_room else None
         execute_query(
             "INSERT INTO doorway_openings (room_id, x1, y1, x2, y2, connected_room_id, name) "
             "VALUES (%s::uuid, %s, %s, %s, %s, %s::uuid, %s)",
@@ -289,7 +299,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
     print(f"Created {len(doorways_data)} doorway openings.")
 
     # 8. Define Authentic Exhibits & Artifacts placed exactly on the architectural pedestals
-    exhibits_data = [
+    exhibits_data: List[dict[str, Any]] = [
         {
             "key": "exhibit_info_kiosk",
             "title": "Oriental Institute Information & Interactive Audio Kiosk",
@@ -299,6 +309,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Modern Digital Guide",
             "origin": "Chicago, IL, USA",
             "category": "Information & Services",
+            "image": "/uploads/art_oriental_institute_information.jpg",
             "significance": "Central orientation hub welcoming visitors and providing personalized accessibility guidance.",
             "facts": ["Interactive touch terminal with museum tour paths", "Offers 8 language audio guides", "Digital high-res catalog of the entire collection"]
         },
@@ -311,6 +322,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Contemporary Collections",
             "origin": "University of Chicago",
             "category": "Museum Store & Publications",
+            "image": "/uploads/art_suq_museum_bookstore.jpg",
             "significance": "Named after the historic Arabic marketplace ('Suq'), supporting ongoing research and international field excavations.",
             "facts": ["Founded in 1931 alongside the museum building", "Features authentic replicas and scholarly excavation publications", "Offers hand-crafted Middle Eastern jewelry and ceramics"]
         },
@@ -323,6 +335,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "10,000 BCE – 1000 CE",
             "origin": "Ancient Near East & Nile Valley",
             "category": "Historical Mural",
+            "image": "/uploads/art_james_henry_breasted_chronology_mur.jpg",
             "significance": "Chronicles archaeological discoveries spearheaded by James Henry Breasted, who popularized the concept of the Fertile Crescent.",
             "facts": ["Traces the birth of agriculture, cities, and writing", "Coined the historical term 'Fertile Crescent'", "Illustrates synchronisms between Egyptian and Mesopotamian dynasties"]
         },
@@ -335,6 +348,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Neolithic (~7000 BCE)",
             "origin": "Jarmo, Zagros Foothills, Iraqi Kurdistan",
             "category": "Neolithic Antiquities",
+            "image": "/uploads/art_jarmo_clay_mother_goddess_figurine.jpg",
             "significance": "Pioneering evidence of the transition from nomadic foraging to sedentary village life and fertility rituals.",
             "facts": ["One of humanity's earliest sculptural depictions of the human form", "Excavated by Robert Braidwood in the 1940s and 50s", "Associated with early agricultural fertility rituals"]
         },
@@ -347,6 +361,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Hassuna Period (~6000 BCE)",
             "origin": "Tell Hassuna, Nineveh Governorate, Iraq",
             "category": "Ancient Ceramics",
+            "image": "/uploads/art_hassuna_painted_ceramic.jpg",
             "significance": "Demonstrates the earliest master kilning and decorative ceramics in Upper Mesopotamia.",
             "facts": ["Showcases earliest sophisticated kilning and geometric slip painting", "Discovered in subterranean storage grain silos", "Precursor to Halafian fine luxury pottery"]
         },
@@ -359,6 +374,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Early Dynastic I–II (~2900–2600 BCE)",
             "origin": "Square Temple of Abu, Tell Asmar (ancient Eshnunna), Iraq",
             "category": "Sumerian Statuary",
+            "image": "/uploads/art_statue_of_a_sumerian_worshiper_from.jpg",
             "significance": "Placed in shrines as an eternal stand-in for elite Sumerians to offer perpetual prayer to the god Abu.",
             "facts": ["Inlaid eyes of lapis lazuli, shell, and black limestone gazing in perpetual devotion", "Clasped hands hold an offering cup before the god Abu", "Excavated by the Oriental Institute Iraq Expedition in 1933–34"]
         },
@@ -371,6 +387,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Neo-Babylonian Empire (Reign of Nebuchadnezzar II, c. 604–562 BCE)",
             "origin": "Processional Way & Ishtar Gate, Babylon, Iraq",
             "category": "Architectural Relief",
+            "image": "/uploads/art_babylonian_striding_lion_glazed_bri.jpg",
             "significance": "Represented royal invincibility and divine protection along the ceremonial avenue leading into the city of Babylon.",
             "facts": ["Symbolizes Ishtar, the Babylonian goddess of love and warfare", "Molded and glazed with vibrant lapis-blue and golden-yellow glazes", "Mounted along the sacred avenue to the temple of Marduk"]
         },
@@ -383,6 +400,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Old Babylonian Period (~1800–1600 BCE)",
             "origin": "Sippar, Lower Mesopotamia, Iraq",
             "category": "Cuneiform Literature",
+            "image": "/uploads/art_epic_of_gilgamesh_cuneiform_tablet_.jpg",
             "significance": "The world's earliest literary epic exploring themes of friendship, mortality, and the search for eternal life.",
             "facts": ["Contains lines from Tablet II describing the taming of Enkidu", "Inscribed in fine wedge-shaped Akkadian cuneiform on river clay", "World's oldest surviving epic literary masterpiece"]
         },
@@ -395,6 +413,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Neo-Assyrian Empire (c. 721–705 BCE)",
             "origin": "Palace of Sargon II, Khorsabad (Dur-Sharrukin), Iraq",
             "category": "Monumental Sculpture",
+            "image": "/uploads/art_colossal_winged_bull_lamassu.jpg",
             "significance": "Guarded the entrance to the royal throne room, terrifying foreign ambassadors with imperial majesty.",
             "facts": ["Carved from a single 40-ton block of crystalline gypsum alabaster", "Possesses five legs so it appears standing firm from the front and walking from the side", "Guarded the entrance to the royal palace throne room"]
         },
@@ -407,6 +426,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Neo-Assyrian Empire (c. 710 BCE)",
             "origin": "Khorsabad (Dur-Sharrukin), Iraq",
             "category": "Palace Relief",
+            "image": "/uploads/art_palace_bas-relief_of_sargon_ii_and_.jpg",
             "significance": "Shows the elaborate ceremonial robes, rosette wristlets, and curled beards characteristic of the Assyrian royal court.",
             "facts": ["Depicts King Sargon II facing his grand vizier and court eunuchs", "Traces of original red and black pigments preserved in the beard and headdress", "Transported by raft down the Tigris River during 1929 excavation"]
         },
@@ -419,6 +439,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Neo-Assyrian Empire (c. 879 BCE)",
             "origin": "Northwest Palace, Nimrud (ancient Kalhu), Iraq",
             "category": "Royal Inscriptions",
+            "image": "/uploads/art_banquet_stele.jpg",
             "significance": "Unrivaled primary document detailing the diplomatic scope, agricultural wealth, and botanical gardens of ancient Assyria.",
             "facts": ["Records the grandest feast of antiquity with 69,574 guests over ten days", "Lists vast menus including 10,000 sheep, 500 deer, and 10,000 skins of wine", "Crowns Ashurnasirpal under the divine emblems of Ashur, Shamash, and Ishtar"]
         },
@@ -431,6 +452,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Neo-Hittite / Syro-Hittite (c. 850–750 BCE)",
             "origin": "Kunulua, Tell Tayinat, Amuq Valley, Turkey",
             "category": "Basalt Sculpture",
+            "image": "/uploads/art_tell_tayinat_column_base_with_twin_.jpg",
             "significance": "Supported massive cedar columns at the royal palace gateway (bit-hilani architecture).",
             "facts": ["Carved from dense dark volcanic basalt with bared fangs", "Supported monumental cedar wooden portico columns in the royal palace", "Excavated by the Oriental Institute Syrian-Hittite Expedition"]
         },
@@ -443,6 +465,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Early Bronze Age (~3000–2500 BCE)",
             "origin": "Tell al-Judeideh, Amuq Valley, Syria/Turkey border",
             "category": "Bronze Metallurgy",
+            "image": "/uploads/art_judeideh_bronze_statuettes_of_gods_.jpg",
             "significance": "Heralded the revolutionary dawn of the Bronze Age in the Levant.",
             "facts": ["Oldest known cast-bronze human figurines discovered in the Near East", "Male warrior figure wears a conical silver helmet and holds a spear", "Highlights earliest transition from copper to true tin-bronze metallurgy"]
         },
@@ -455,6 +478,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Late Bronze Age II (~1350–1200 BCE)",
             "origin": "Royal Palace Stratum VIIA, Megiddo, Israel",
             "category": "Ivory Carving",
+            "image": "/uploads/art_the_megiddo_ivories.jpg",
             "significance": "Extraordinary masterpiece blending Canaanite, Egyptian, Mycenaean, and Hittite artistic traditions.",
             "facts": ["Intricately carved hippopotamus ivory plaque showing a Canaanite prince", "Demonstrates Egyptian, Aegean, and Mesopotamian artistic synthesis", "Discovered in a subterranean palace cache of over 380 ivory luxury items"]
         },
@@ -467,6 +491,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Classical Cloister Architecture (1931)",
             "origin": "Oriental Institute Courtyard Garden",
             "category": "Architectural Feature",
+            "image": "/uploads/art_central_octagonal_limestone_fountai.jpg",
             "significance": "The peaceful heart of the museum connecting the east and west wings with natural light.",
             "facts": ["Open-air garden designed in Mediterranean cloister style", "Surrounded by limestone loggias inspired by Near Eastern monasteries", "Provides tranquil ambient natural lighting for all surrounding galleries"]
         },
@@ -479,6 +504,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "New Kingdom, 18th Dynasty (c. 1334–1325 BCE)",
             "origin": "Mortuary Temple of Eye and Horemheb, Medinet Habu, Thebes, Egypt",
             "category": "Royal Statuary",
+            "image": "/uploads/art_colossal_17-foot_statue_of_king_tut.jpg",
             "significance": "The tallest ancient Egyptian statue in the Western Hemisphere, originally erected in Tutankhamun's mortuary temple.",
             "facts": ["Tallest ancient Egyptian statue in the Western Hemisphere", "Carved from high-grade quartzite with remnants of royal red paint", "Re-carved by Pharaohs Eye and Horemheb after Tutankhamun's early death"]
         },
@@ -491,6 +517,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Late Period, 26th Saite Dynasty (c. 664–525 BCE)",
             "origin": "Saqqara Necropolis, Egypt",
             "category": "Funerary Monument",
+            "image": "/uploads/art_granite_sarcophagus_of_vizier_baken.jpg",
             "significance": "Exemplifies the archaizing Renaissance style of the 26th Dynasty reviving Old Kingdom mortuary grandeur.",
             "facts": ["Monumental hard black granodiorite sarcophagus weighing 8 tons", "Incised with chapters from the Book of the Amduat and Book of the Dead", "Inscriptions invoke Isis, Nephthys, and Anubis to protect the vizier"]
         },
@@ -503,6 +530,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Ptolemaic Period (c. 300 BCE)",
             "origin": "Hermopolis Magna (Tuna el-Gebel), Middle Egypt",
             "category": "Funerary Arts",
+            "image": "/uploads/art_polychrome_painted_coffin_of_petosi.jpg",
             "significance": "Rare completely preserved anthropoid coffin showing Greek and Egyptian artistic fusion in the early Hellenistic era.",
             "facts": ["Made of native sycamore fig wood with brilliant mineral pigment paintings", "Features the deceased Petosiris presented before Osiris and 42 assessor gods", "Includes intact cartonnage mummy mask and protective collar"]
         },
@@ -515,6 +543,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Ptolemaic Period (c. 300–250 BCE)",
             "origin": "Akhmim, Upper Egypt",
             "category": "Hieroglyphic Papyrus",
+            "image": "/uploads/art_papyrus_of_nes-min:_book_of_the_dea.jpg",
             "significance": "One of the best-preserved continuous papyri detailing ancient Egyptian afterlife theology.",
             "facts": ["Over 25 feet of unbroken papyrus written in fine hieratic script", "Contains the Weighing of the Heart spell (Chapter 125)", "Illustrated with vignettes of the jackal-headed god Anubis and Thoth"]
         },
@@ -527,6 +556,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Achaemenid Persian Empire (c. 518–465 BCE)",
             "origin": "Apadana Palace (Audience Hall), Persepolis, Iran",
             "category": "Architectural Sculpture",
+            "image": "/uploads/art_persepolis_column_capital_with_doub.jpg",
             "significance": "Towered 65 feet above the palace floor, holding up monumental cedar beams imported from Lebanon.",
             "facts": ["Carved from native dark gray Persepolis limestone weighing over 10 tons", "Two kneeling bulls back-to-back supported giant Lebanese cedar roof beams", "Excavated during the Oriental Institute Persepolis Expedition in the 1930s"]
         },
@@ -539,6 +569,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Kingdom of Kush, Classic Kerma (c. 1750–1550 BCE)",
             "origin": "Royal Necropolis of Kerma, Northern Sudan",
             "category": "Nubian Ceramics",
+            "image": "/uploads/art_kerma_classic_tulip-shaped_decorate.jpg",
             "significance": "Represents the pinnacle of African pottery technology achieved without the use of a potter's wheel.",
             "facts": ["Eggshell-thin black-topped red burnished ceramic vessel", "Features a distinctive silvery-gray metallic band around the rim", "Crafted entirely by hand without a potter's wheel"]
         },
@@ -551,6 +582,7 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Hellenistic–Bactrian Period (c. 250 BCE – 100 CE)",
             "origin": "Bactria-Margiana Archaeological Complex, Central Asia",
             "category": "Silk Road Antiquities",
+            "image": "/uploads/art_silk_road_bactrian_bronze_mirror_an.jpg",
             "significance": "Testifies to the vibrant trade and intellectual exchange linking the Mediterranean, Persia, Central Asia, and China.",
             "facts": ["Engraved with syncretic Greek and Persian mythological figures", "Demonstrates vibrant long-distance caravan trade across ancient Eurasia", "Polished reflective bronze face with elaborate repoussé relief back"]
         },
@@ -563,13 +595,14 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
             "period": "Art Deco / Gothic Revival (1931)",
             "origin": "Oriental Institute Auditorium, Chicago",
             "category": "Institutional Heritage",
+            "image": "/uploads/art_historic_1931_hand-carved_oak_lectu.jpg",
             "significance": "Commemorates the global legacy of scientific archaeology and excavation dissemination.",
             "facts": ["Crafted from American white oak with carved Egyptian lotus and cuneiform motifs", "Site of inaugural archaeological lectures by Breasted and Henry Frankfort", "Remains in active use for international Near Eastern symposiums"]
         }
     ]
 
     # 9. Define Navigation Hubs, Doorways, and Waypoints
-    waypoints_data = [
+    waypoints_data: List[dict[str, Any]] = [
         # Main Exterior Entrance
         {"key": "node_main_entrance", "title": "Main Entrance Threshold", "room": "Lobby", "x": 0.070, "y": 0.790, "type": "entrance,exit"},
         
@@ -620,20 +653,23 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
         lat = lat0 + ex_y * scale_y
         lng = lng0 + ex_x * scale_x
         gal_id = gallery_db_ids.get(ex["room"])
+        img_path = ex.get("image")
 
         # 1. Insert into objects table
         obj_row = execute_query(
             """
             INSERT INTO objects (
                 museum_id, gallery_id, name, description, category, period, origin, significance, facts, latitude, longitude,
-                featured, created_at, updated_at
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::json, %s, %s, TRUE, NOW(), NOW()) RETURNING id
+                image, images, featured, created_at, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::json, %s, %s, %s, %s::json, TRUE, NOW(), NOW()) RETURNING id
             """,
             (
                 MUSEUM_ID, gal_id, ex["title"], ex["desc"], ex["category"],
                 ex.get("period"), ex.get("origin"), ex.get("significance"),
                 json.dumps(ex.get("facts", [])),
-                lat, lng
+                lat, lng,
+                img_path,
+                json.dumps([img_path] if img_path else [])
             ),
             fetchone=True, commit=True
         )
@@ -643,10 +679,10 @@ def setup_oriental_institute_plan(plan_id=PLAN_ID, wipe_all_old_plans=True):
         art_row = execute_query(
             """
             INSERT INTO artifacts (
-                floor_plan_id, name, description, map_x, map_y, latitude, longitude, created_at
-            ) VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id
+                floor_plan_id, name, description, map_x, map_y, latitude, longitude, object_id, created_at
+            ) VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id
             """,
-            (plan_id, ex["title"], ex["desc"], ex["x"], ex["y"], lat, lng),
+            (plan_id, ex["title"], ex["desc"], ex["x"], ex["y"], lat, lng, obj_id),
             fetchone=True, commit=True
         )
         art_id = str(art_row[0])
